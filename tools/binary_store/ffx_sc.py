@@ -730,6 +730,8 @@ class GLSLCompiler(ICompiler):
             disable_logs,
             debug_compile,
         )
+        #Github Action
+        VULKAN_SDK_BUILD_DIR: str = os.environ.get("VULKAN_SDK_BUILD_DIR")
         if os.name == "nt":
             self.glslang_exe = os.path.join(script_dir,"windows", "glslangValidator.exe")
         else:
@@ -739,8 +741,13 @@ class GLSLCompiler(ICompiler):
         except Exception:
             try:
                 returncode = subprocess.run(["glslangValidator", "--version"], capture_output=True).returncode
+                self.glslang_exe = "glslangValidator"
             except Exception:
-                returncode = 1
+                try:
+                    returncode = subprocess.run([os.path.join(VULKAN_SDK_BUILD_DIR,"tools","bin", "glslangValidator"), "--version"], capture_output=True).returncode
+                    self.glslang_exe = os.path.join(VULKAN_SDK_BUILD_DIR,"tools","bin", "glslangValidator")
+                except Exception:
+                    returncode = 1
         if returncode != 0:
             raise FileNotFoundError(f"glslangValidator executable not runnable: {self.glslang_exe}")
         if os.name == "nt":
@@ -752,8 +759,13 @@ class GLSLCompiler(ICompiler):
         except Exception:
             try:
                 returncode = subprocess.run(["spirv-cross", "--help"], capture_output=True).returncode
+                self.spirv_cross_exe = "spirv-cross"
             except Exception:
-                returncode = 1
+                try:
+                    returncode = subprocess.run([os.path.join(VULKAN_SDK_BUILD_DIR,"tools","bin", "spirv-cross"), "--help"], capture_output=True).returncode
+                    self.spirv_cross_exe = os.path.join(VULKAN_SDK_BUILD_DIR,"tools","bin", "spirv-cross")
+                except Exception:
+                    returncode = 1
         if returncode != 0:
             raise FileNotFoundError(f"spirv-cross executable not runnable: {self.spirv_cross_exe}")
         self.shader_dependencies = set()
