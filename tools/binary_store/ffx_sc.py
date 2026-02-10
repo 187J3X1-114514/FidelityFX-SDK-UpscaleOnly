@@ -737,7 +737,10 @@ class GLSLCompiler(ICompiler):
         try:
             returncode = subprocess.run([self.glslang_exe, "--version"], capture_output=True).returncode
         except Exception:
-            returncode = 1
+            try:
+                returncode = subprocess.run(["glslangValidator", "--version"], capture_output=True).returncode
+            except Exception:
+                returncode = 1
         if returncode != 0:
             raise FileNotFoundError(f"glslangValidator executable not runnable: {self.glslang_exe}")
         if os.name == "nt":
@@ -747,7 +750,10 @@ class GLSLCompiler(ICompiler):
         try:
             returncode = subprocess.run([self.spirv_cross_exe, "--help"], capture_output=True).returncode
         except Exception:
-            returncode = 1
+            try:
+                returncode = subprocess.run(["spirv-cross", "--help"], capture_output=True).returncode
+            except Exception:
+                returncode = 1
         if returncode != 0:
             raise FileNotFoundError(f"spirv-cross executable not runnable: {self.spirv_cross_exe}")
         self.shader_dependencies = set()
