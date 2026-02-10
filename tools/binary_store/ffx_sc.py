@@ -732,60 +732,72 @@ class GLSLCompiler(ICompiler):
         )
         #Github Action
         VULKAN_SDK_BUILD_DIR: str = os.environ.get("VULKAN_SDK_BUILD_DIR")
-        if os.name == "nt":
-            self.glslang_exe = os.path.join(script_dir,"windows", "glslangValidator.exe")
-        else:
-            self.glslang_exe = os.path.join(script_dir,"linux", "glslangValidator")
         returncode = 1
+        
+        # Try system PATH first (most reliable in CI environments)
         try:
-            returncode = subprocess.run([self.glslang_exe, "--version"], capture_output=True).returncode
-            if returncode != 0:
-                raise Exception(f"glslangValidator executable not runnable: {self.glslang_exe}")
+            returncode = subprocess.run(["glslangValidator", "--version"], capture_output=True).returncode
+            if returncode == 0:
+                self.glslang_exe = "glslangValidator"
         except Exception:
+            pass
+        
+        # Try VULKAN_SDK_BUILD_DIR if available
+        if returncode != 0 and VULKAN_SDK_BUILD_DIR:
             try:
-                returncode = subprocess.run(["glslangValidator", "--version"], capture_output=True).returncode
+                vulkan_glslang = os.path.join(VULKAN_SDK_BUILD_DIR, "tools", "bin", "glslangValidator")
+                returncode = subprocess.run([vulkan_glslang, "--version"], capture_output=True).returncode
                 if returncode == 0:
-                    self.glslang_exe = "glslangValidator"
-                else:
-                    raise Exception("returncode != 0")
+                    self.glslang_exe = vulkan_glslang
             except Exception:
-                try:
-                    returncode = subprocess.run([os.path.join(VULKAN_SDK_BUILD_DIR,"tools","bin", "glslangValidator"), "--version"], capture_output=True).returncode
-                    if returncode == 0:
-                        self.glslang_exe = os.path.join(VULKAN_SDK_BUILD_DIR,"tools","bin", "glslangValidator")
-                    else:
-                        returncode = 1
-                except Exception:
-                    returncode = 1
+                pass
+        
+        # Try local bundled executable as last resort
         if returncode != 0:
-            raise FileNotFoundError(f"glslangValidator executable not runnable: {self.glslang_exe}")
-        if os.name == "nt":
-            self.spirv_cross_exe = os.path.join(script_dir,"windows", "spirv-cross.exe")
-        else:
-            self.spirv_cross_exe = os.path.join(script_dir,"linux", "spirv-cross")
+            if os.name == "nt":
+                self.glslang_exe = os.path.join(script_dir, "windows", "glslangValidator.exe")
+            else:
+                self.glslang_exe = os.path.join(script_dir, "linux", "glslangValidator")
+            try:
+                returncode = subprocess.run([self.glslang_exe, "--version"], capture_output=True).returncode
+            except Exception:
+                pass
+        
+        if returncode != 0:
+            raise FileNotFoundError(f"glslangValidator executable not found. Please install Vulkan SDK or ensure glslangValidator is in PATH.")
         returncode = 1
+        
+        # Try system PATH first (most reliable in CI environments)
         try:
-            returncode = subprocess.run([self.spirv_cross_exe, "--help"], capture_output=True).returncode
-            if returncode != 0:
-                raise Exception("returncode != 0")
+            returncode = subprocess.run(["spirv-cross", "--help"], capture_output=True).returncode
+            if returncode == 0:
+                self.spirv_cross_exe = "spirv-cross"
         except Exception:
+            pass
+        
+        # Try VULKAN_SDK_BUILD_DIR if available
+        if returncode != 0 and VULKAN_SDK_BUILD_DIR:
             try:
-                returncode = subprocess.run(["spirv-cross", "--help"], capture_output=True).returncode
+                vulkan_spirv = os.path.join(VULKAN_SDK_BUILD_DIR, "tools", "bin", "spirv-cross")
+                returncode = subprocess.run([vulkan_spirv, "--help"], capture_output=True).returncode
                 if returncode == 0:
-                    self.spirv_cross_exe = "spirv-cross"
-                else:
-                    raise Exception("returncode != 0")
+                    self.spirv_cross_exe = vulkan_spirv
             except Exception:
-                try:
-                    returncode = subprocess.run([os.path.join(VULKAN_SDK_BUILD_DIR,"tools","bin", "spirv-cross"), "--help"], capture_output=True).returncode
-                    if returncode == 0:
-                        self.spirv_cross_exe = os.path.join(VULKAN_SDK_BUILD_DIR,"tools","bin", "spirv-cross")
-                    else:
-                        returncode = 1
-                except Exception:
-                    returncode = 1
+                pass
+        
+        # Try local bundled executable as last resort
         if returncode != 0:
-            raise FileNotFoundError(f"spirv-cross executable not runnable: {self.spirv_cross_exe}")
+            if os.name == "nt":
+                self.spirv_cross_exe = os.path.join(script_dir, "windows", "spirv-cross.exe")
+            else:
+                self.spirv_cross_exe = os.path.join(script_dir, "linux", "spirv-cross")
+            try:
+                returncode = subprocess.run([self.spirv_cross_exe, "--help"], capture_output=True).returncode
+            except Exception:
+                pass
+        
+        if returncode != 0:
+            raise FileNotFoundError(f"spirv-cross executable not found. Please install Vulkan SDK or ensure spirv-cross is in PATH.")
         self.shader_dependencies = set()
         self.shader_dependencies_collected = False
 
