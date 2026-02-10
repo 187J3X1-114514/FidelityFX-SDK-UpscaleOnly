@@ -31,6 +31,7 @@ from typing import Dict, List, Set, Optional
 import json
 import math
 import subprocess
+import shutil
 import hashlib
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -108,6 +109,28 @@ def ensure_directory_exists(path: str):
 def normalize_path(path: str) -> str:
     
     return os.path.normpath(path).replace("\\", "/")
+
+
+def resolve_executable(executable: str, extra_dirs: List[str] | None = None) -> str | None:
+
+    if executable:
+        if os.path.isfile(executable):
+            return executable
+        if os.name == "nt" and not executable.lower().endswith(".exe"):
+            exe_path = executable + ".exe"
+            if os.path.isfile(exe_path):
+                return exe_path
+
+    search_path = None
+    if extra_dirs:
+        search_path = os.pathsep.join(extra_dirs)
+
+    if executable:
+        resolved = shutil.which(executable, path=search_path)
+        if resolved:
+            return resolved
+
+    return None
 
 
 @dataclass
@@ -707,34 +730,51 @@ class GLSLCompiler(ICompiler):
             disable_logs,
             debug_compile,
         )
-        self.glslang_exe = glslang_exe if os.path.exists(glslang_exe) else os.path.join(script_dir, "glslangValidator")
+        extra_dirs = [script_dir]
+        extra_dirs.append(os.path.join(script_dir, "glslangValidator"))
+        extra_dirs.append(os.path.join(script_dir, "spirv-cross"))
+        vulkan_sdk = os.environ.get("VULKAN_SDK")
+        if vulkan_sdk:
+            extra_dirs.append(os.path.join(vulkan_sdk, "Bin"))
+            extra_dirs.append(os.path.join(vulkan_sdk, "Bin32"))
+
+        self.glslang_exe = resolve_executable(glslang_exe, extra_dirs)
+        if not self.glslang_exe:
+            if os.name == "nt":
+                self.glslang_exe = resolve_executable("glslangValidator.exe", extra_dirs)
+            if not self.glslang_exe:
+                self.glslang_exe = resolve_executable("glslangValidator", extra_dirs)
+        if not self.glslang_exe:
+            searched = ", ".join(extra_dirs)
+            raise FileNotFoundError(
+                f"glslangValidator executable not found. Searched PATH and: {searched}"
+            )
+
         try:
-            returncode = subprocess.run(f'"{self.glslang_exe}" --version', capture_output=True).returncode
+            returncode = subprocess.run([self.glslang_exe, "--version"], capture_output=True).returncode
         except Exception:
             returncode = 1
         if returncode != 0:
-            try:
-                returncode = subprocess.run(f'glslangValidator --version', capture_output=True).returncode
-            except Exception:
-                returncode = 1
-            if returncode != 0:
-                raise FileNotFoundError(f"glslangValidator executable not found at: {self.glslang_exe}")
-            else:
-                self.glslang_exe = "glslangValidator"
-        self.spirv_cross_exe = os.path.join(script_dir, "spirv-cross")
+            raise FileNotFoundError(f"glslangValidator executable not runnable: {self.glslang_exe}")
+
+        self.spirv_cross_exe = resolve_executable(os.path.join(script_dir, "spirv-cross.exe"), extra_dirs)
+        if not self.spirv_cross_exe:
+            if os.name == "nt":
+                self.spirv_cross_exe = resolve_executable("spirv-cross.exe", extra_dirs)
+            if not self.spirv_cross_exe:
+                self.spirv_cross_exe = resolve_executable("spirv-cross", extra_dirs)
+        if not self.spirv_cross_exe:
+            searched = ", ".join(extra_dirs)
+            raise FileNotFoundError(
+                f"spirv-cross executable not found. Searched PATH and: {searched}"
+            )
+
         try:
-            returncode = subprocess.run(f'"{self.spirv_cross_exe}" --help', capture_output=True).returncode
+            returncode = subprocess.run([self.spirv_cross_exe, "--help"], capture_output=True).returncode
         except Exception:
             returncode = 1
         if returncode != 0:
-            try:
-                returncode = subprocess.run(f'spirv-cross --help', capture_output=True).returncode
-            except Exception:
-                returncode = 1
-            if returncode != 0:
-                raise FileNotFoundError(f"spirv-cross executable not found at: {self.spirv_cross_exe}")
-            else:
-                self.spirv_cross_exe = "spirv-cross"        
+            raise FileNotFoundError(f"spirv-cross executable not runnable: {self.spirv_cross_exe}")
         self.shader_dependencies = set()
         self.shader_dependencies_collected = False
 
@@ -747,7 +787,7 @@ class GLSLCompiler(ICompiler):
         import shutil
 
         if hasattr(self, "temp_dir") and os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir, ignore_errors=True)
+            pass#shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def compile(
         self,
@@ -861,7 +901,7 @@ class GLSLCompiler(ICompiler):
 
             try:
                 if os.path.exists(hash_file):
-                    os.remove(hash_file)
+                    pass#os.remove(hash_file)
                 os.rename(temp_file, hash_file)
             except Exception as e:
                 pass
@@ -873,7 +913,7 @@ class GLSLCompiler(ICompiler):
         return succeeded
         
 
-    def extract_reflection_data(self, permutation: Permutation) -> bool:
+    def extract_reflection_data(self, permutation: Permutation, spirv_cross_exe: str) -> bool:
         
         reflection = ReflectionData()
 
@@ -888,7 +928,7 @@ class GLSLCompiler(ICompiler):
 
             try:
                 result = subprocess.run(
-                    [os.path.join(script_dir, "spirv-cross"), "-V", spirv_file, "--reflect", "--output", json_file],
+                    [spirv_cross_exe, "-V", spirv_file, "--reflect", "--output", json_file],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -902,7 +942,17 @@ class GLSLCompiler(ICompiler):
                 return False
 
             with open(json_file, "r",encoding="utf-8") as f:
-                data = json.load(f)
+                count = 0
+                while True:
+                    try:
+                        data = json.load(f)
+                        import time
+                        time.sleep(0.1)
+                        break
+                    except Exception as e:
+                        if count >= 5:
+                            raise e
+                        count += 1
 
             self._extract_resources(data, "ubos", reflection.constant_buffers)
             self._extract_resources(data, "separate_images", reflection.srv_textures)
@@ -917,7 +967,7 @@ class GLSLCompiler(ICompiler):
         except Exception as e:
             if not self.disable_logs:
                 print(
-                    f"Failed to extract reflection: {e}", file=__import__("sys").stderr
+                    f"Failed to extract reflection: {e} {json_file}", file=__import__("sys").stderr
                 )
             return False
 
@@ -1244,7 +1294,7 @@ class Application:
             raise RuntimeError(f"Failed to compile shader: {permutation.source_path}")
 
         if self.params.generate_reflection:
-            self.compiler.extract_reflection_data(permutation)
+            self.compiler.extract_reflection_data(permutation,self.compiler.spirv_cross_exe)
 
         should_write = False
 

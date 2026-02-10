@@ -57,7 +57,11 @@
 /// The size of the context specified in 32bit values.
 ///
 /// @ingroup ffxFsr1
+#if defined(WCHAR_MAX) && (WCHAR_MAX > 0xFFFF)
+#define FFX_FSR1_CONTEXT_SIZE       (27448 * 2)
+#else
 #define FFX_FSR1_CONTEXT_SIZE       (27448)
+#endif
 
 #if defined(__cplusplus)
 extern "C" {

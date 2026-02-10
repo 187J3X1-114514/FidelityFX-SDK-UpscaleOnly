@@ -93,6 +93,24 @@ elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "arm64" OR CMAKE_EXE_LINKER_FLAGS STREQ
     set(FFX_PLATFORM_NAME arm64)
 elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "arm64ec" OR CMAKE_EXE_LINKER_FLAGS STREQUAL "/machine:ARM64EC")
 	set(FFX_PLATFORM_NAME arm64ec)
+elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "")
+	# Non-Visual Studio generators (e.g., Ninja, Unix Makefiles) do not set a platform.
+	# Derive platform from backend name or system info.
+	if(FFX_API_BACKEND MATCHES "X64$")
+		set(FFX_PLATFORM_NAME x64)
+	elseif(FFX_API_BACKEND MATCHES "ARM64EC$")
+		set(FFX_PLATFORM_NAME arm64ec)
+	elseif(FFX_API_BACKEND MATCHES "ARM64$")
+		set(FFX_PLATFORM_NAME arm64)
+	elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
+		set(FFX_PLATFORM_NAME x64)
+	elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(i[3-6]86)$")
+		set(FFX_PLATFORM_NAME x86)
+	elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(aarch64|ARM64)$")
+		set(FFX_PLATFORM_NAME arm64)
+	else()
+		message(FATAL_ERROR "Unsupported target platform. CMAKE_HOST_SYSTEM_PROCESSOR=\"${CMAKE_HOST_SYSTEM_PROCESSOR}\"")
+	endif()
 else()
     message(FATAL_ERROR "Unsupported target platform \"${CMAKE_GENERATOR_PLATFORM}\"")
 endif()
@@ -120,10 +138,12 @@ endif()
 # Set configuration types based on what we are building for
 if (NOT FFX_CUSTOM_API)
 
-	# Embed PDBs in the debug versions of the libs
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Z7 /Od")
-	
-	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+	if(MSVC)
+		# Embed PDBs in the debug versions of the libs
+		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Z7 /Od")
+		
+		set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+	endif()
     
 	# Write debug, profile, and release versions of the static libs to the /bin folder as they are uniquely named	
 	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_HOME_DIRECTORY}/bin/ffx_sdk/)

@@ -27,10 +27,13 @@
 #include <ffx_shader_blobs.h>
 #include <ffx_breadcrumbs_list.h>
 
+#include <cmath>
+
 #ifdef _WIN32
 #include <windows.h>
 #else
-#include <codecvt>  // this is deprecated so it's just a fallback solution
+#include <codecvt>  // deprecated, used as a fallback on non-Windows
+#include <locale>
 #endif              // _WIN32
 
 #include <vulkan/vulkan.h>
@@ -2309,7 +2312,7 @@ FfxErrorCode CreateResourceVK(FfxInterface*                       backendInterfa
 
     if (resourceDesc.mipCount == 0)
     {
-        resourceDesc.mipCount = (uint32_t)(1 + floor(log2(FFX_MAXIMUM(FFX_MAXIMUM(createResourceDescription->resourceDescription.width,
+        resourceDesc.mipCount = (uint32_t)(1 + std::floor(std::log2(FFX_MAXIMUM(FFX_MAXIMUM(createResourceDescription->resourceDescription.width,
                                                                                   createResourceDescription->resourceDescription.height),
                                                                       createResourceDescription->resourceDescription.depth))));
     }

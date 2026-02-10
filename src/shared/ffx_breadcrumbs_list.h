@@ -24,7 +24,13 @@
 
 #include <cstdint>
 #include <cstdio>      // sprintf_s
+#include <cstring>     // memcpy, strlen
 #include <FidelityFX/host/ffx_assert.h>
+
+#if !defined(_MSC_VER)
+// Provide a portable replacement for MSVC-only sprintf_s.
+#define sprintf_s(buffer, bufferSize, format, ...) snprintf((buffer), (bufferSize), (format), __VA_ARGS__)
+#endif
 
 #define FFX_BREADCRUMBS_APPEND_STRING(buff, count, str)                                  \
     do                                                                                   \

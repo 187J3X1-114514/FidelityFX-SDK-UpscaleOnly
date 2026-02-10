@@ -110,5 +110,6 @@ gradle-app.setting
 .gradletasknamecache
 
 **/build/
+**/buildWin/
 **/out/
 **/bin/

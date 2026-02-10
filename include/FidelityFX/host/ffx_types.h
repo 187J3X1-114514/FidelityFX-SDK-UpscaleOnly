@@ -23,6 +23,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <wchar.h>
 
 ///
 /// @defgroup ffxSDK SDK
@@ -77,7 +78,11 @@
 #define FFX_API __declspec(dllexport)
 #endif // #if defined (FFX_GCC)
 
+#if defined(WCHAR_MAX) && (WCHAR_MAX > 0xFFFF)
+#define FFX_SDK_DEFAULT_CONTEXT_SIZE (1024 * 256)
+#else
 #define FFX_SDK_DEFAULT_CONTEXT_SIZE (1024 * 128)
+#endif
 
 /// Maximum supported number of simultaneously bound SRVs.
 ///
