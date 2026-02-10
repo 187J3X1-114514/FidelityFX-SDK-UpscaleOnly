@@ -730,47 +730,20 @@ class GLSLCompiler(ICompiler):
             disable_logs,
             debug_compile,
         )
-        extra_dirs = [script_dir]
-        if os.name != "nt":
-            extra_dirs.append("/usr/bin")
-        extra_dirs.append(os.path.join(script_dir, "glslangValidator"))
-        extra_dirs.append(os.path.join(script_dir, "spirv-cross"))
-        vulkan_sdk = os.environ.get("VULKAN_SDK")
-        if vulkan_sdk:
-            extra_dirs.append(os.path.join(vulkan_sdk, "Bin"))
-            extra_dirs.append(os.path.join(vulkan_sdk, "Bin32"))
-
-        self.glslang_exe = resolve_executable(glslang_exe, extra_dirs)
-        if not self.glslang_exe:
-            if os.name == "nt":
-                self.glslang_exe = resolve_executable("glslangValidator.exe", extra_dirs)
-            if not self.glslang_exe:
-                self.glslang_exe = resolve_executable("glslangValidator", extra_dirs)
-        if not self.glslang_exe:
-            searched = ", ".join(extra_dirs)
-            raise FileNotFoundError(
-                f"glslangValidator executable not found. Searched PATH and: {searched}"
-            )
-
+        if os.name == "nt":
+            self.glslang_exe = os.path.join(script_dir,"windows", "glslangValidator.exe")
+        else:
+            self.glslang_exe = os.path.join(script_dir,"linux", "glslangValidator")
         try:
             returncode = subprocess.run([self.glslang_exe, "--version"], capture_output=True).returncode
         except Exception:
             returncode = 1
         if returncode != 0:
             raise FileNotFoundError(f"glslangValidator executable not runnable: {self.glslang_exe}")
-
-        self.spirv_cross_exe = resolve_executable(os.path.join(script_dir, "spirv-cross.exe"), extra_dirs)
-        if not self.spirv_cross_exe:
-            if os.name == "nt":
-                self.spirv_cross_exe = resolve_executable("spirv-cross.exe", extra_dirs)
-            if not self.spirv_cross_exe:
-                self.spirv_cross_exe = resolve_executable("spirv-cross", extra_dirs)
-        if not self.spirv_cross_exe:
-            searched = ", ".join(extra_dirs)
-            raise FileNotFoundError(
-                f"spirv-cross executable not found. Searched PATH and: {searched}"
-            )
-
+        if os.name == "nt":
+            self.spirv_cross_exe = os.path.join(script_dir,"windows", "spirv-cross.exe")
+        else:
+            self.spirv_cross_exe = os.path.join(script_dir,"linux", "spirv-cross")
         try:
             returncode = subprocess.run([self.spirv_cross_exe, "--help"], capture_output=True).returncode
         except Exception:
