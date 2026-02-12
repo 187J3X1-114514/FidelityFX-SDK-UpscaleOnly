@@ -1,17 +1,17 @@
 #   The MIT License (MIT)
-#   
+#
 #   Copyright (c) 2025 187J3X1-114514
-#   
+#
 #   Permission is hereby granted, free of charge, to any person obtaining a copy
 #   of this software and associated documentation files (the "Software"), to deal
 #   in the Software without restriction, including without limitation the rights
 #   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 #   copies of the Software, and to permit persons to whom the Software is
 #   furnished to do so, subject to the following conditions:
-#   
+#
 #   The above copyright notice and this permission notice shall be included in
 #   all copies or substantial portions of the Software.
-#   
+#
 #   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 #   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 #   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -35,6 +35,7 @@ import shutil
 import hashlib
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
+
 
 def md5_hash_file(file_path: str) -> str:
     hash_md5 = hashlib.md5()
@@ -102,16 +103,18 @@ def collect_dependencies(
 
 
 def ensure_directory_exists(path: str):
-    
+
     Path(path).mkdir(parents=True, exist_ok=True)
 
 
 def normalize_path(path: str) -> str:
-    
+
     return os.path.normpath(path).replace("\\", "/")
 
 
-def resolve_executable(executable: str, extra_dirs: List[str] | None = None) -> str | None:
+def resolve_executable(
+    executable: str, extra_dirs: List[str] | None = None
+) -> str | None:
 
     if executable:
         if os.path.isfile(executable):
@@ -188,7 +191,7 @@ class LaunchParameters:
     input_file: str = ""
     shader_name: str = ""
     compiler: str = ""
-    glslang_exe: str = ""
+    glslang_bin: str = ""
     deps: str = ""
     num_threads: int = 0
     generate_reflection: bool = False
@@ -199,7 +202,7 @@ class LaunchParameters:
 
 
 def parse_permutation_option(definition_str: str) -> PermutationOption:
-    
+
     if "=" not in definition_str or "{" not in definition_str:
         raise ValueError(f"Invalid permutation option format: {definition_str}")
 
@@ -239,7 +242,7 @@ def parse_permutation_option(definition_str: str) -> PermutationOption:
 
 
 def parse_command_line(args: List[str]) -> LaunchParameters:
-    
+
     parser = argparse.ArgumentParser(
         description="FidelityFX Shader Compiler",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -297,7 +300,7 @@ def parse_command_line(args: List[str]) -> LaunchParameters:
     params.disable_logs = parsed.disable_logs
     params.debug_compile = parsed.debugcompile
     params.num_threads = parsed.num_threads
-    params.glslang_exe = parsed.glslangexe or "glslangValidator"
+    params.glslang_bin = parsed.glslangexe or "glslangValidator"
 
     if parsed.entry_point:
         params.compiler_args.extend(["-e", parsed.entry_point])
@@ -336,14 +339,14 @@ def parse_command_line(args: List[str]) -> LaunchParameters:
 
 
 def ensure_output_path(output_path: str):
-    
+
     Path(output_path).mkdir(parents=True, exist_ok=True)
 
 
 def generate_macro_permutations(
     permutation_options: List[PermutationOption], source_path: str
 ) -> deque:
-    
+
     permutations = deque()
 
     base = Permutation()
@@ -365,7 +368,6 @@ def _generate_recursive(
     option_idx: int,
     current_bit: int,
 ):
-    
 
     if option_idx >= len(options):
         permutations.append(current)
@@ -410,7 +412,7 @@ def find_permutation_options_in_shader(
     include_paths: List[Path],
     permutation_options: List[PermutationOption],
 ) -> Set[str]:
-    
+
     search_files = [shader_path]
     searched_files = set()
     num_defs_found = 0
@@ -469,11 +471,11 @@ def write_shader_binary_header(
     embed_arguments: bool = False,
     compiler_args: List[str] = [],
 ):
-    
+
     header_path = os.path.join(output_path, f"{permutation.name}.h")
     permutation.header_file_name = f"{permutation.name}.h"
 
-    with open(header_path, "w",encoding="utf-8") as fp:
+    with open(header_path, "w", encoding="utf-8") as fp:
 
         fp.write(f"// {permutation.name}.h\n")
         fp.write("// meow\n\n")
@@ -515,11 +517,11 @@ def write_shader_permutations_header(
     compiler,
     generate_reflection: bool,
 ):
-    
+
     header_path = os.path.join(output_path, f"{shader_name}_permutations.h")
     for perm in unique_permutations:
         perm.header_file_name = f"{perm.name}.h"
-    with open(header_path, "w",encoding="utf-8") as fp:
+    with open(header_path, "w", encoding="utf-8") as fp:
 
         for perm in unique_permutations:
             fp.write(f'#include "{perm.header_file_name}"\n')
@@ -591,11 +593,11 @@ def write_shader_permutations_header(
 
 
 def write_depfile_gcc(shader_name: str, output_path: str, dependencies: set):
-    
+
     header_file = os.path.join(output_path, f"{shader_name}_permutations.h")
     depfile_path = header_file + ".d"
 
-    with open(depfile_path, "w",encoding="utf-8") as fp:
+    with open(depfile_path, "w", encoding="utf-8") as fp:
         fp.write(f"{header_file}:")
         for dep in sorted(dependencies):
             fp.write(f" {dep}")
@@ -656,11 +658,11 @@ def print_help():
     print("  --target-env <env> Target environment (e.g. vulkan1.2)")
     print("  -Os               Optimize for size")
 
-
-class ICompiler(ABC):
+class GLSLCompiler():
 
     def __init__(
         self,
+        glslang_bin: str,
         shader_path: str,
         shader_name: str,
         shader_file_name: str,
@@ -668,136 +670,189 @@ class ICompiler(ABC):
         disable_logs: bool,
         debug_compile: bool,
     ):
-        
+
         self.shader_path = shader_path
         self.shader_name = shader_name
         self.shader_file_name = shader_file_name
         self.output_path = output_path
         self.disable_logs = disable_logs
         self.debug_compile = debug_compile
-
-    @abstractmethod
-    def compile(
-        self,
-        permutation: Permutation,
-        arguments: List[str],
-        write_mutex: threading.Lock,
-    ) -> bool:
-        
-        pass
-
-    @abstractmethod
-    def extract_reflection_data(self, permutation: Permutation) -> bool:
-        
-        pass
-
-    @abstractmethod
-    def write_binary_header_reflection_data(
-        self, fp, permutation: Permutation, write_mutex: threading.Lock
-    ):
-        
-        pass
-
-    @abstractmethod
-    def write_permutation_header_reflection_struct_members(self, fp):
-        
-        pass
-
-    @abstractmethod
-    def write_permutation_header_reflection_data(self, fp, permutation: Permutation):
-        
-        pass
-
-
-class GLSLCompiler(ICompiler):
-
-    def __init__(
-        self,
-        glslang_exe: str,
-        shader_path: str,
-        shader_name: str,
-        shader_file_name: str,
-        output_path: str,
-        disable_logs: bool,
-        debug_compile: bool,
-    ):
-        
-        super().__init__(
-            shader_path,
-            shader_name,
-            shader_file_name,
-            output_path,
-            disable_logs,
-            debug_compile,
-        )
-        #Github Action
+        # Github Action
         VULKAN_SDK_BUILD_DIR: str = os.environ.get("VULKAN_SDK_BUILD_DIR")
+        VULKAN_SDK_DIR: str = os.environ.get("VULKAN_SDK")
+        extra_str = ""
+        if os.name == "nt":
+            extra_str = ".exe"
         returncode = 1
-        
+
         # Try system PATH first (most reliable in CI environments)
         try:
-            returncode = subprocess.run(["glslangValidator", "--version"], capture_output=True).returncode
+            returncode = subprocess.run(
+                ["glslangValidator", "--version"], capture_output=True
+            ).returncode
             if returncode == 0:
-                self.glslang_exe = "glslangValidator"
+                self.glslang_bin = "glslangValidator"
         except Exception:
             pass
-        
+
         # Try VULKAN_SDK_BUILD_DIR if available
         if returncode != 0 and VULKAN_SDK_BUILD_DIR:
             try:
-                vulkan_glslang = os.path.join(VULKAN_SDK_BUILD_DIR, "tools", "bin", "glslangValidator")
-                returncode = subprocess.run([vulkan_glslang, "--version"], capture_output=True).returncode
+                vulkan_glslang = os.path.join(
+                    VULKAN_SDK_BUILD_DIR, "tools", "bin", "glslangValidator" + extra_str
+                )
+                returncode = subprocess.run(
+                    [vulkan_glslang, "--version"], capture_output=True
+                ).returncode
                 if returncode == 0:
-                    self.glslang_exe = vulkan_glslang
+                    self.glslang_bin = vulkan_glslang
             except Exception:
                 pass
-        
+        if returncode != 0 and VULKAN_SDK_DIR:
+            try:
+                vulkan_glslang = os.path.join(
+                    VULKAN_SDK_DIR, "Bin", "glslangValidator" + extra_str   
+                )
+                returncode = subprocess.run(
+                    [vulkan_glslang, "--version"], capture_output=True
+                ).returncode
+                if returncode == 0:
+                    self.glslang_bin = vulkan_glslang
+            except Exception:
+                pass
         # Try local bundled executable as last resort
         if returncode != 0:
             if os.name == "nt":
-                self.glslang_exe = os.path.join(script_dir, "windows", "glslangValidator.exe")
+                self.glslang_bin = os.path.join(
+                    script_dir, "windows", "glslangValidator.exe"
+                )
             else:
-                self.glslang_exe = os.path.join(script_dir, "linux", "glslangValidator")
+                self.glslang_bin = os.path.join(script_dir, "linux", "glslangValidator")
             try:
-                returncode = subprocess.run([self.glslang_exe, "--version"], capture_output=True).returncode
+                returncode = subprocess.run(
+                    [self.glslang_bin, "--version"], capture_output=True
+                ).returncode
             except Exception:
                 pass
-        
+
         if returncode != 0:
-            raise FileNotFoundError(f"glslangValidator executable not found. Please install Vulkan SDK or ensure glslangValidator is in PATH.")
+            raise FileNotFoundError(
+                f"glslangValidator executable not found. Please install Vulkan SDK or ensure glslangValidator is in PATH."
+            )
         returncode = 1
-        
+
         # Try system PATH first (most reliable in CI environments)
         try:
-            returncode = subprocess.run(["spirv-cross", "--help"], capture_output=True).returncode
+            returncode = subprocess.run(
+                ["spirv-cross", "--help"], capture_output=True
+            ).returncode
             if returncode == 0:
-                self.spirv_cross_exe = "spirv-cross"
+                self.spirv_cross_bin = "spirv-cross"
         except Exception:
             pass
-        
+
         # Try VULKAN_SDK_BUILD_DIR if available
         if returncode != 0 and VULKAN_SDK_BUILD_DIR:
             try:
-                vulkan_spirv = os.path.join(VULKAN_SDK_BUILD_DIR, "tools", "bin", "spirv-cross")
-                returncode = subprocess.run([vulkan_spirv, "--help"], capture_output=True).returncode
+                vulkan_spirv = os.path.join(
+                    VULKAN_SDK_BUILD_DIR, "tools", "bin", "spirv-cross" + extra_str
+                )
+                returncode = subprocess.run(
+                    [vulkan_spirv, "--help"], capture_output=True
+                ).returncode
                 if returncode == 0:
-                    self.spirv_cross_exe = vulkan_spirv
+                    self.spirv_cross_bin = vulkan_spirv
             except Exception:
                 pass
-        
+        if returncode != 0 and VULKAN_SDK_DIR:
+            try:
+                vulkan_spirv = os.path.join(
+                    VULKAN_SDK_DIR, "Bin", "spirv-cross" + extra_str
+                )
+                returncode = subprocess.run(
+                    [vulkan_spirv, "--help"], capture_output=True
+                ).returncode
+                if returncode == 0:
+                    self.spirv_cross_bin = vulkan_spirv
+            except Exception:
+                pass
+
         # Try local bundled executable as last resort
         if returncode != 0:
             if os.name == "nt":
-                self.spirv_cross_exe = os.path.join(script_dir, "windows", "spirv-cross.exe")
+                self.spirv_cross_bin = os.path.join(
+                    script_dir, "windows", "spirv-cross.exe"
+                )
             else:
-                self.spirv_cross_exe = os.path.join(script_dir, "linux", "spirv-cross")
+                self.spirv_cross_bin = os.path.join(script_dir, "linux", "spirv-cross")
             try:
-                returncode = subprocess.run([self.spirv_cross_exe, "--help"], capture_output=True).returncode
+                returncode = subprocess.run(
+                    [self.spirv_cross_bin, "--help"], capture_output=True
+                ).returncode
             except Exception:
                 pass
-        
+
         if returncode != 0:
-            raise FileNotFoundError(f"spirv-cross executable not found. Please install Vulkan SDK or ensure spirv-cross is in PATH.")
+            raise FileNotFoundError(
+                f"spirv-cross executable not found. Please install Vulkan SDK or ensure spirv-cross is in PATH."
+            )
+        self.spirv_reflect_bin = ""
+        returncode = 1
+        # Try system PATH first (most reliable in CI environments)
+        try:
+            returncode = subprocess.run(
+                ["spirv-reflect", "--help"], capture_output=True
+            ).returncode
+            if returncode == 0:
+                self.spirv_reflect_bin = "spirv-reflect"
+        except Exception:
+            pass
+
+        # Try VULKAN_SDK_BUILD_DIR if available
+        if returncode != 0 and VULKAN_SDK_BUILD_DIR:
+            try:
+                vulkan_spirv = os.path.join(
+                    VULKAN_SDK_BUILD_DIR, "tools", "bin", "spirv-reflect" + extra_str
+                )
+                returncode = subprocess.run(
+                    [vulkan_spirv, "--help"], capture_output=True
+                ).returncode
+                if returncode == 0:
+                    self.spirv_reflect_bin = vulkan_spirv
+            except Exception:
+                pass
+        if returncode != 0 and VULKAN_SDK_DIR:
+            try:
+                vulkan_spirv = os.path.join(
+                    VULKAN_SDK_DIR, "Bin", "spirv-reflect" + extra_str
+                )
+                returncode = subprocess.run(
+                    [vulkan_spirv, "--help"], capture_output=True
+                ).returncode
+                if returncode == 0:
+                    self.spirv_reflect_bin = vulkan_spirv
+            except Exception:
+
+                pass
+        # Try local bundled executable as last resort
+        if returncode != 0:
+            if os.name == "nt":
+                self.spirv_reflect_bin = os.path.join(
+                    script_dir, "windows", "spirv-reflect.exe"
+                )
+            else:
+                self.spirv_reflect_bin = os.path.join(script_dir, "linux", "spirv-reflect")
+            try:
+                returncode = subprocess.run(
+                    [self.spirv_reflect_bin, "--help"], capture_output=True
+                ).returncode
+            except Exception:
+                pass
+
+        if returncode != 0:
+            raise FileNotFoundError(
+                f"spirv-reflect executable not found. Please install Vulkan SDK or ensure spirv-reflect is in PATH."
+            )
         self.shader_dependencies = set()
         self.shader_dependencies_collected = False
 
@@ -810,7 +865,7 @@ class GLSLCompiler(ICompiler):
         import shutil
 
         if hasattr(self, "temp_dir") and os.path.exists(self.temp_dir):
-            pass#shutil.rmtree(self.temp_dir, ignore_errors=True)
+            pass  # shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def compile(
         self,
@@ -818,16 +873,15 @@ class GLSLCompiler(ICompiler):
         arguments: List[str],
         write_mutex: threading.Lock,
     ) -> bool:
-        
+
         errors = []
 
-        cmd = [self.glslang_exe]
+        cmd = [self.glslang_bin]
 
         if self.debug_compile:
             cmd.extend(["-g", "-gVS", "-Od"])
 
         cmd.append("-V")
-
 
         include_search_paths = []
         i = 0
@@ -924,7 +978,7 @@ class GLSLCompiler(ICompiler):
 
             try:
                 if os.path.exists(hash_file):
-                    pass#os.remove(hash_file)
+                    pass  # os.remove(hash_file)
                 os.rename(temp_file, hash_file)
             except Exception as e:
                 pass
@@ -934,10 +988,59 @@ class GLSLCompiler(ICompiler):
         permutation.dependencies = self.shader_dependencies
 
         return succeeded
-        
+    
+    def extract_reflection_data_from_spirv_reflect(
+        self, spirv_file: str, spirv_reflect_bin: str
+    ) -> Dict:
+        reflection_data = {}
+        import yaml
+        try:
+            try:
+                result = subprocess.run(
+                    [
+                        spirv_reflect_bin,
+                        spirv_file,
+                        "-y"
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                
+            except Exception as e:
+                if not self.disable_logs:
+                    print(
+                        f"Failed to run spirv-reflect: {e}", file=__import__("sys").stderr
+                    )
+                return {}
+            if result.returncode != 0:
+                return {}
+            yaml_output = result.stdout
+            count = 0
+            while True:
+                try:
+                    if os.name != "nt":
+                        import time
+                        time.sleep(0.1)
+                    data = yaml.safe_load(yaml_output)
+                    return data["all_descriptor_bindings"]
+                    break
+                except Exception as e:
+                    if count >= 5:
+                        raise e
+                    count += 1
+        except Exception as e:
+            if not self.disable_logs:
+                print(
+                    f"Failed to extract reflection: {e} {spirv_file}",
+                    file=__import__("sys").stderr,
+                )
+        pass
 
-    def extract_reflection_data(self, permutation: Permutation, spirv_cross_exe: str) -> bool:
-        
+    def extract_reflection_data(
+        self, permutation: Permutation, spirv_cross_bin: str,spirv_reflect_bin :str
+    ) -> bool:
+
         reflection = ReflectionData()
 
         spirv_file = os.path.join(self.output_path, f"{permutation.name}.spv")
@@ -951,46 +1054,77 @@ class GLSLCompiler(ICompiler):
 
             try:
                 result = subprocess.run(
-                    [spirv_cross_exe, "-V", spirv_file, "--reflect", "--output", json_file],
+                    [
+                        spirv_cross_bin,
+                        "-V",
+                        spirv_file,
+                        "--reflect",
+                        "--output",
+                        json_file,
+                    ],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
                 )
             except Exception as e:
                 if not self.disable_logs:
-                    print(f"Failed to run spirv-cross: {e}", file=__import__("sys").stderr)
+                    print(
+                        f"Failed to run spirv-cross: {e}", file=__import__("sys").stderr
+                    )
                 return False
 
             if result.returncode != 0 or not os.path.exists(json_file):
                 return False
 
-            with open(json_file, "r",encoding="utf-8") as f:
+            with open(json_file, "r", encoding="utf-8") as f:
                 count = 0
                 while True:
                     try:
+                        if os.name != "nt":
+                            import time
+                            time.sleep(0.1)
                         data = json.load(f)
-                        import time
-                        time.sleep(0.1)
+                        
                         break
                     except Exception as e:
                         if count >= 5:
                             raise e
                         count += 1
 
+            
+            #ubo数据有问题，得用spirv-reflect重新提取
+            patch = self.extract_reflection_data_from_spirv_reflect(spirv_file, spirv_reflect_bin)
+            """
+            {
+                "type" : "_398",
+                "name" : "cbFSR3UPSCALER_t", #!
+                "block_size" : 148,
+                "set" : 0,     #!
+                "binding" : 12 #!
+            }
+            """
+            data["ubos"] = []
+            for patch_resource in patch:
+                if int(patch_resource["resource_type"]) == 2:
+                    data["ubos"].append({
+                        "name": patch_resource["name"],
+                        "binding": patch_resource["binding"],
+                        "set": patch_resource["set"],
+                    })
             self._extract_resources(data, "ubos", reflection.constant_buffers)
             self._extract_resources(data, "separate_images", reflection.srv_textures)
             self._extract_resources(data, "images", reflection.uav_textures)
             self._extract_resources(data, "ssbos", reflection.srv_buffers)
             self._extract_resources(data, "storage_buffers", reflection.uav_buffers)
             self._extract_resources(data, "separate_samplers", reflection.samplers)
-            self._extract_resources(
-                data, "acceleration_structures", reflection.rt_acceleration_structures
-            )
+            #用不到
+            #self._extract_resources(data, "acceleration_structures", reflection.rt_acceleration_structures)
 
         except Exception as e:
             if not self.disable_logs:
                 print(
-                    f"Failed to extract reflection: {e} {json_file}", file=__import__("sys").stderr
+                    f"Failed to extract reflection: {e} {json_file}",
+                    file=__import__("sys").stderr,
                 )
             return False
 
@@ -1000,16 +1134,12 @@ class GLSLCompiler(ICompiler):
     def _extract_resources(
         self, data: dict, key: str, resource_list: List[ShaderResourceInfo]
     ):
-        
+
         if key not in data:
             return
 
         for res in data[key]:
             name = res["name"]
-
-            if name.endswith("_t"):
-                name = name[:-2]
-
             resource_list.append(
                 ShaderResourceInfo(
                     name=name,
@@ -1022,7 +1152,7 @@ class GLSLCompiler(ICompiler):
     def write_binary_header_reflection_data(
         self, fp, permutation: Permutation, write_mutex: threading.Lock
     ):
-        
+
         if not permutation.reflection_data:
             return
 
@@ -1058,7 +1188,7 @@ class GLSLCompiler(ICompiler):
         resources: List[ShaderResourceInfo],
         resource_type: str,
     ):
-        
+
         if not resources:
             return
 
@@ -1091,7 +1221,6 @@ class GLSLCompiler(ICompiler):
         fp.write("\n")
 
     def write_permutation_header_reflection_struct_members(self, fp):
-        
 
         resource_definitions = [
             ("SRVTextures", "srvTexture"),
@@ -1118,7 +1247,7 @@ class GLSLCompiler(ICompiler):
             fp.write("\n")
 
     def write_permutation_header_reflection_data(self, fp, permutation: Permutation):
-        
+
         if not permutation.reflection_data:
 
             fp.write("0, 0, 0, 0, 0, " * 7)
@@ -1158,7 +1287,7 @@ class GLSLCompiler(ICompiler):
         resources: List[ShaderResourceInfo],
         resource_type: str,
     ):
-        
+
         if resources:
             fp.write(f"{len(resources)}, ")
             fp.write(f"g_{permutation_name}_{resource_type}ResourceNames, ")
@@ -1172,7 +1301,7 @@ class GLSLCompiler(ICompiler):
 class Application:
 
     def __init__(self, params: LaunchParameters):
-        
+
         self.params = params
         self.compiler = None
         self.macro_permutations = deque()
@@ -1250,7 +1379,7 @@ class Application:
 
         if self.params.compiler == "glslang":
             self.compiler = GLSLCompiler(
-                self.params.glslang_exe,
+                self.params.glslang_bin,
                 self.params.input_file,
                 self.shader_name,
                 self.shader_file_name,
@@ -1289,7 +1418,6 @@ class Application:
             self.compile_permutation_method(permutation)
 
     def compile_permutation_method(self, permutation):
-        
 
         if permutation.identical_to is not None:
             with self.write_mutex:
@@ -1317,7 +1445,9 @@ class Application:
             raise RuntimeError(f"Failed to compile shader: {permutation.source_path}")
 
         if self.params.generate_reflection:
-            self.compiler.extract_reflection_data(permutation,self.compiler.spirv_cross_exe)
+            self.compiler.extract_reflection_data(
+                permutation, self.compiler.spirv_cross_bin, self.compiler.spirv_reflect_bin
+            )
 
         should_write = False
 
@@ -1357,7 +1487,7 @@ class Application:
             )
 
     def print_permutation_arguments_method(self, permutation):
-        
+
         with self.write_mutex:
             print(f"\nPermutation {permutation.key}:")
 
