@@ -3961,6 +3961,11 @@ static FfxErrorCode executeGpuJobCompute(BackendContext_VK*    backendContext,
         uint32_t       mipOffset     = textureUAV.mip;
         if (textureUAV.mip >= backendContext->pResources[resourceIndex].resourceDescription.mipCount)
             mipOffset = backendContext->pResources[resourceIndex].resourceDescription.mipCount - 1;
+
+        // Skip resources that don't have UAV views created (uavViewIndex == -1)
+        if (backendContext->pResources[resourceIndex].uavViewIndex < 0)
+            continue;
+
         const uint32_t uavViewIndex = backendContext->pResources[resourceIndex].uavViewIndex + mipOffset;
 
         writeDescriptorSets[descriptorWriteIndex]                 = {};
@@ -4043,6 +4048,11 @@ static FfxErrorCode executeGpuJobCompute(BackendContext_VK*    backendContext,
         writeDescriptorSets[descriptorWriteIndex].dstArrayElement = binding.arrayIndex;
 
         const uint32_t resourceIndex = textureSRV.resource.internalIndex;
+
+        // Skip resources that don't have SRV views created (srvViewIndex == -1)
+        if (backendContext->pResources[resourceIndex].srvViewIndex < 0)
+            continue;
+
         const uint32_t srvViewIndex  = backendContext->pResources[resourceIndex].srvViewIndex;
 
         imageDescriptorInfos[imageDescriptorIndex]             = {};

@@ -1181,24 +1181,34 @@ static FfxErrorCode fsr3upscalerDispatch(FfxFsr3UpscalerContext_Private* context
                                                                     context->effectContextId,
                                                                     &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_INPUT_MOTION_VECTORS]);
 
-    context->contextDescription.backendInterface.fpRegisterResource(&context->contextDescription.backendInterface,
-                                                                    &params->dilatedMotionVectors,
-                                                                    context->effectContextId,
-                                                                    &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_MOTION_VECTORS]);
-    context->uavResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_MOTION_VECTORS] =
-        context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_MOTION_VECTORS];
-    context->contextDescription.backendInterface.fpRegisterResource(&context->contextDescription.backendInterface,
-                                                                    &params->dilatedDepth,
-                                                                    context->effectContextId,
-                                                                    &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_DEPTH]);
-    context->uavResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_DEPTH] = context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_DEPTH];
-    context->contextDescription.backendInterface.fpRegisterResource(
-        &context->contextDescription.backendInterface,
-        &params->reconstructedPrevNearestDepth,
-        context->effectContextId,
-        &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_RECONSTRUCTED_PREVIOUS_NEAREST_DEPTH]);
-    context->uavResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_RECONSTRUCTED_PREVIOUS_NEAREST_DEPTH] =
-        context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_RECONSTRUCTED_PREVIOUS_NEAREST_DEPTH];
+    // Only register shared resources if they are provided externally; otherwise keep the internal static resources
+    if (params->dilatedMotionVectors.resource)
+    {
+        context->contextDescription.backendInterface.fpRegisterResource(&context->contextDescription.backendInterface,
+                                                                        &params->dilatedMotionVectors,
+                                                                        context->effectContextId,
+                                                                        &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_MOTION_VECTORS]);
+        context->uavResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_MOTION_VECTORS] =
+            context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_MOTION_VECTORS];
+    }
+    if (params->dilatedDepth.resource)
+    {
+        context->contextDescription.backendInterface.fpRegisterResource(&context->contextDescription.backendInterface,
+                                                                        &params->dilatedDepth,
+                                                                        context->effectContextId,
+                                                                        &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_DEPTH]);
+        context->uavResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_DEPTH] = context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_DEPTH];
+    }
+    if (params->reconstructedPrevNearestDepth.resource)
+    {
+        context->contextDescription.backendInterface.fpRegisterResource(
+            &context->contextDescription.backendInterface,
+            &params->reconstructedPrevNearestDepth,
+            context->effectContextId,
+            &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_RECONSTRUCTED_PREVIOUS_NEAREST_DEPTH]);
+        context->uavResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_RECONSTRUCTED_PREVIOUS_NEAREST_DEPTH] =
+            context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_RECONSTRUCTED_PREVIOUS_NEAREST_DEPTH];
+    }
 
     // if auto exposure is enabled use the auto exposure SRV, otherwise what the app sends.
     if (context->contextDescription.flags & FFX_FSR3UPSCALER_ENABLE_AUTO_EXPOSURE)
