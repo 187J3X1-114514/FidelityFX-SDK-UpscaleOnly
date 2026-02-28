@@ -37,10 +37,6 @@ function(compile_shaders_with_depfile
 	SHADER_FILES OUTPUT_PATH
 	PERMUTATION_OUTPUTS)
 
-	# Save the output variable name before using PERMUTATION_OUTPUTS as a local list
-	set(OUTPUT_VAR_NAME ${PERMUTATION_OUTPUTS})
-	set(PERMUTATION_OUTPUTS "")
-
 	#message(STATUS "OUTPUT_PATH=${OUTPUT_PATH}")
 	#message(STATUS "EXE=${EXECUTABLE}")
 	#message(STATUS "BASE=${BASE_ARGS}")
@@ -131,7 +127,7 @@ function(compile_shaders_with_depfile
 		list(APPEND PERMUTATION_OUTPUTS ${WAVE64_16BIT_PERMUTATION_HEADER})
 	endforeach(PASS_SHADER)
 
-	set(${OUTPUT_VAR_NAME} ${PERMUTATION_OUTPUTS} PARENT_SCOPE)
+	set(${PERMUTATION_OUTPUTS} ${PERMUTATION_OUTPUTS} PARENT_SCOPE)
 endfunction()
 
 # macro to add shader output files to a list for dependencies
@@ -140,7 +136,6 @@ macro (add_shader_output)
 		#message (STATUS ${_SHADER_SRC})
 		list (APPEND FFX_SC_PERMUTATION_OUTPUTS "${_SHADER_SRC}")
     endforeach()
-	# Note: PARENT_SCOPE is removed because this macro runs in included files
-	# (not inside a function), and we want FFX_SC_PERMUTATION_OUTPUTS to stay
-	# in the current directory scope where add_custom_target will use it.
+
+	set (FFX_SC_PERMUTATION_OUTPUTS ${FFX_SC_PERMUTATION_OUTPUTS} PARENT_SCOPE)
 endmacro()

@@ -22,29 +22,10 @@
 
 cmake_minimum_required(VERSION 3.23)
 
-set(FFX_API_BACKEND VK_X64)
-set(FFX_FSR3UPSCALER ON)
-set(FFX_FSR2 ON)
-set(FFX_FSR1 ON)
-
-if(POLICY CMP0091)
-	# Enable CMAKE_MSVC_RUNTIME_LIBRARY
-	cmake_policy(SET CMP0091 NEW)
-endif()
-
 if(POLICY CMP0147)
 	# parallel custom command builds (used for shader compilation)
 	cmake_policy(SET CMP0147 NEW)
 endif()
-
-# Use static runtime library (MT/MTd) instead of dynamic (MD/MDd)
-# MUST be set before project() command
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-endif()
-# Enable position independent code for all targets (required for shared libraries on Linux)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Clean a bit before
 unset(FFX_GDK CACHE)
@@ -107,24 +88,6 @@ elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "arm64" OR CMAKE_EXE_LINKER_FLAGS STREQ
     set(FFX_PLATFORM_NAME arm64)
 elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "arm64ec" OR CMAKE_EXE_LINKER_FLAGS STREQUAL "/machine:ARM64EC")
 	set(FFX_PLATFORM_NAME arm64ec)
-elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "")
-	# Non-Visual Studio generators (e.g., Ninja, Unix Makefiles) do not set a platform.
-	# Derive platform from backend name or system info.
-	if(FFX_API_BACKEND MATCHES "X64$")
-		set(FFX_PLATFORM_NAME x64)
-	elseif(FFX_API_BACKEND MATCHES "ARM64EC$")
-		set(FFX_PLATFORM_NAME arm64ec)
-	elseif(FFX_API_BACKEND MATCHES "ARM64$")
-		set(FFX_PLATFORM_NAME arm64)
-	elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
-		set(FFX_PLATFORM_NAME x64)
-	elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(i[3-6]86)$")
-		set(FFX_PLATFORM_NAME x86)
-	elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(aarch64|ARM64)$")
-		set(FFX_PLATFORM_NAME arm64)
-	else()
-		message(FATAL_ERROR "Unsupported target platform. CMAKE_HOST_SYSTEM_PROCESSOR=\"${CMAKE_HOST_SYSTEM_PROCESSOR}\"")
-	endif()
 else()
     message(FATAL_ERROR "Unsupported target platform \"${CMAKE_GENERATOR_PLATFORM}\"")
 endif()
@@ -152,10 +115,8 @@ endif()
 # Set configuration types based on what we are building for
 if (NOT FFX_CUSTOM_API)
 
-	if(MSVC)
-		# Embed PDBs in the debug versions of the libs
-		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Z7 /Od")
-	endif()
+	# Embed PDBs in the debug versions of the libs
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Z7 /Od")
     
 	# Write debug, profile, and release versions of the static libs to the /bin folder as they are uniquely named	
 	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_HOME_DIRECTORY}/bin/ffx_sdk/)
@@ -170,6 +131,21 @@ if (NOT FFX_CUSTOM_API)
 		set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_HOME_DIRECTORY}/bin/ffx_sdk/)
         set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS FFX_BUILD_AS_DLL)
 	endif()
+else()
+
+	# Ouput the static libs to the /bin folder as they are uniquely named
+	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${BIN_OUTPUT}/ffx_sdk)
+	foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES} )
+		string( TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG )
+		set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${BIN_OUTPUT}/ffx_sdk/ )
+		if (FFX_BUILD_AS_DLL)
+			# Write both debug and release versions of the dlls to the /bin folder as they are uniquely named
+			set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_HOME_DIRECTORY}/bin/ffx_sdk/)
+			set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_HOME_DIRECTORY}/bin/ffx_sdk/)
+			set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_HOME_DIRECTORY}/bin/ffx_sdk/)
+		endif()
+	endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
+
 endif()
 
 if (FFX_FSR3)
@@ -192,11 +168,8 @@ if(FFX_VS_VERSION STREQUAL 2015 OR FFX_VS_VERSION STREQUAL 2017)
     set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION "10.0.18362.0")
 endif()
 
-# Find Python interpreter
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
-
 # Setup common variables
-set(FFX_SC_EXECUTABLE ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/tools/binary_store/ffx_sc.py")
+set(FFX_SC_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/tools/binary_store/FidelityFX_SC.exe)
 set(FFX_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(FFX_LIB_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 set(FFX_BIN_PATH ${CMAKE_CURRENT_SOURCE_DIR}/bin/ffx_sdk)
@@ -232,6 +205,7 @@ set(FFX_PUBLIC_SHADER_SOURCES
     "${FFX_GPU_PATH}/ffx_core_glsl.h"
     "${FFX_GPU_PATH}/ffx_core_gpu_common.h"
     "${FFX_GPU_PATH}/ffx_core_gpu_common_half.h"
+    "${FFX_GPU_PATH}/ffx_core_hlsl.h"
     "${FFX_GPU_PATH}/ffx_core_portability.h")
 
 if(FFX_API_BACKEND STREQUAL DX12_X64)
@@ -257,10 +231,41 @@ else()
 	project (FidelityFX-SDK)
 endif()
 
+# Components
+add_subdirectory(${FFX_COMPONENTS_PATH}/opticalflow)
+add_subdirectory(${FFX_COMPONENTS_PATH}/frameinterpolation)
+add_subdirectory(${FFX_COMPONENTS_PATH}/fsr3)
 add_subdirectory(${FFX_COMPONENTS_PATH}/fsr3upscaler)
 add_subdirectory(${FFX_COMPONENTS_PATH}/fsr2)
 add_subdirectory(${FFX_COMPONENTS_PATH}/fsr1)
+add_subdirectory(${FFX_COMPONENTS_PATH}/spd)
+add_subdirectory(${FFX_COMPONENTS_PATH}/cacao)
+add_subdirectory(${FFX_COMPONENTS_PATH}/lpm)
+add_subdirectory(${FFX_COMPONENTS_PATH}/blur)
+add_subdirectory(${FFX_COMPONENTS_PATH}/vrs)
+add_subdirectory(${FFX_COMPONENTS_PATH}/cas)
+add_subdirectory(${FFX_COMPONENTS_PATH}/dof)
+add_subdirectory(${FFX_COMPONENTS_PATH}/lens)
+add_subdirectory(${FFX_COMPONENTS_PATH}/parallelsort)
+add_subdirectory(${FFX_COMPONENTS_PATH}/denoiser)
+add_subdirectory(${FFX_COMPONENTS_PATH}/sssr)
+add_subdirectory(${FFX_COMPONENTS_PATH}/brixelizer)
+add_subdirectory(${FFX_COMPONENTS_PATH}/brixelizergi)
+add_subdirectory(${FFX_COMPONENTS_PATH}/classifier)
+add_subdirectory(${FFX_COMPONENTS_PATH}/breadcrumbs)
+
+# Add appropriate graphics backend if requested
+if(FFX_API_BACKEND STREQUAL DX12_X64 OR
+    FFX_API_BACKEND STREQUAL DX12_ARM64 OR
+    FFX_API_BACKEND STREQUAL DX12_ARM64EC)
+	add_subdirectory(${FFX_LIB_PATH}/pix)
+    add_subdirectory(${FFX_SRC_BACKENDS_PATH}/dx12)
+endif()
 
 if (FFX_API_BACKEND STREQUAL VK_X64)
 	add_subdirectory(${FFX_SRC_BACKENDS_PATH}/vk)
+endif()
+
+if(FFX_API_BACKEND STREQUAL GDK_SCARLETT_X64 OR FFX_API_BACKEND STREQUAL GDK_XBOXONE_X64)
+	add_subdirectory(${FFX_SRC_BACKENDS_PATH}/gdk)
 endif()

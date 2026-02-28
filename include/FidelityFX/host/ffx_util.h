@@ -23,9 +23,6 @@
 #pragma once
 
 #include <FidelityFX/host/ffx_types.h>
-#include <errno.h>
-#include <string.h>
-#include <wchar.h>
 
 /// @defgroup Utils Utilities
 /// Utility Macros used by the FidelityFX SDK
@@ -56,88 +53,6 @@ const float FFX_EPSILON = 1e-06f;
 ///
 /// @ingroup Utils
 #define FFX_UNUSED(x)               ((void)(x))
-
-#ifndef _countof
-#define _countof(x)                 (sizeof(x) / sizeof((x)[0]))
-#endif
-
-#if !defined(_MSC_VER) && !defined(wcscpy_s)
-#if defined(__cplusplus)
-inline int ffxWcscpyS(wchar_t* dest, size_t destSize, const wchar_t* src)
-{
-    if (!dest || !src || destSize == 0)
-    {
-        return EINVAL;
-    }
-    wcsncpy(dest, src, destSize - 1);
-    dest[destSize - 1] = L'\0';
-    return 0;
-}
-
-template <size_t N>
-inline int ffxWcscpyS(wchar_t (&dest)[N], const wchar_t* src)
-{
-    return ffxWcscpyS(dest, N, src);
-}
-#else
-static inline int ffxWcscpyS(wchar_t* dest, size_t destSize, const wchar_t* src)
-{
-    if (!dest || !src || destSize == 0)
-    {
-        return EINVAL;
-    }
-    wcsncpy(dest, src, destSize - 1);
-    dest[destSize - 1] = L'\0';
-    return 0;
-}
-#endif
-
-#define wcscpy_s ffxWcscpyS
-#endif
-
-#ifndef strcpy_s
-#if defined(__cplusplus)
-inline int ffxStrcpyS(char* dest, size_t destSize, const char* src)
-{
-    if (!dest || !src || destSize == 0)
-    {
-        return EINVAL;
-    }
-    const size_t len = ::strlen(src);
-    if (len + 1 > destSize)
-    {
-        dest[0] = '\0';
-        return ERANGE;
-    }
-    ::memcpy(dest, src, len + 1);
-    return 0;
-}
-
-template <size_t N>
-inline int ffxStrcpyS(char (&dest)[N], const char* src)
-{
-    return ffxStrcpyS(dest, N, src);
-}
-#else
-static inline int ffxStrcpyS(char* dest, size_t destSize, const char* src)
-{
-    if (!dest || !src || destSize == 0)
-    {
-        return EINVAL;
-    }
-    const size_t len = strlen(src);
-    if (len + 1 > destSize)
-    {
-        dest[0] = '\0';
-        return ERANGE;
-    }
-    memcpy(dest, src, len + 1);
-    return 0;
-}
-#endif
-
-#define strcpy_s ffxStrcpyS
-#endif
 
 /// Helper macro to align an integer to the specified power of 2 boundary
 ///

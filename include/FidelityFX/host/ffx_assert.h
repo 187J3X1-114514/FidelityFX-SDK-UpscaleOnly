@@ -89,8 +89,7 @@ FFX_API bool ffxAssertReport(const char* file, int32_t line, const char* conditi
 /// @ingroup Asserts
 FFX_API void ffxAssertSetPrintingCallback(FfxAssertCallback callback);
 
-//临时ban掉，不然会引起崩溃
-#if defined(_DEBUG) && 0
+#ifdef _DEBUG
 /// Standard assert macro.
 /// 
 /// @ingroup Asserts
