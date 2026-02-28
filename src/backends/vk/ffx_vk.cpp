@@ -27,6 +27,13 @@
 #include <ffx_shader_blobs.h>
 #include <ffx_breadcrumbs_list.h>
 
+<<<<<<< HEAD
+=======
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -283,12 +290,23 @@ FFX_API size_t ffxGetScratchMemorySizeVK(VkPhysicalDevice physicalDevice, size_t
     uint32_t gpuJobDescArraySize = FFX_ALIGN_UP(maxContexts * FFX_MAX_GPU_JOBS * sizeof(FfxGpuJobDescription), sizeof(uint32_t));
     uint32_t resourceViewArraySize = FFX_ALIGN_UP(((maxContexts * FFX_MAX_QUEUED_FRAMES * FFX_MAX_RESOURCE_COUNT * 2) + FFX_MAX_BINDLESS_DESCRIPTOR_COUNT) * sizeof(BackendContext_VK::VkResourceView), sizeof(uint32_t));
     uint32_t stagingRingBufferArraySize = FFX_ALIGN_UP(maxContexts * FFX_CONSTANT_BUFFER_RING_BUFFER_SIZE, sizeof(uint32_t));
+<<<<<<< HEAD
     uint32_t pipelineArraySize = FFX_ALIGN_UP(maxContexts * FFX_MAX_PASS_COUNT * sizeof(BackendContext_VK::PipelineLayout), sizeof(uint32_t));
     uint32_t resourceArraySize = FFX_ALIGN_UP(maxContexts * FFX_MAX_RESOURCE_COUNT * sizeof(BackendContext_VK::Resource), sizeof(uint32_t));
     uint32_t contextArraySize = FFX_ALIGN_UP(maxContexts * sizeof(BackendContext_VK::EffectContext), sizeof(uint32_t));
     
+=======
+    uint32_t pipelineArraySize          = FFX_ALIGN_UP(maxContexts * FFX_MAX_PASS_COUNT * sizeof(BackendContext_VK::PipelineLayout), sizeof(uint32_t));
+    uint32_t resourceArraySize          = FFX_ALIGN_UP(maxContexts * FFX_MAX_RESOURCE_COUNT * sizeof(BackendContext_VK::Resource), sizeof(uint32_t));
+    uint32_t contextArraySize           = FFX_ALIGN_UP(maxContexts * sizeof(BackendContext_VK::EffectContext), sizeof(uint32_t));
+    // Extra padding to ensure EffectContext (alignas(32)) is properly aligned.
+    // On Linux, wchar_t is 4 bytes (vs 2 on Windows), which changes preceding array sizes
+    // and may cause pEffectContexts to land on a non-32-byte-aligned address.
+    uint32_t contextAlignPadding        = alignof(BackendContext_VK::EffectContext) - 1;
+
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
     return FFX_ALIGN_UP(sizeof(BackendContext_VK) + extensionPropArraySize + gpuJobDescArraySize + resourceViewArraySize + stagingRingBufferArraySize +
-                            pipelineArraySize + resourceArraySize + contextArraySize,
+                            pipelineArraySize + resourceArraySize + contextAlignPadding + contextArraySize,
                         sizeof(uint64_t));
 }
 
@@ -1384,6 +1402,7 @@ FfxErrorCode GetEffectGpuMemoryUsageVK(FfxInterface* backendInterface, FfxUInt32
 
 FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect effect, FfxEffectBindlessConfig* bindlessConfig, FfxUInt32* effectContextId)
 {
+    fprintf(stderr, "[FFX-VK] CreateBackendContextVK: Enter. effect=%d\n", (int)effect); fflush(stderr);
     VkDeviceContext* vkDeviceContext = reinterpret_cast<VkDeviceContext*>(backendInterface->device);
 
     FFX_ASSERT(NULL != backendInterface);
@@ -1440,7 +1459,12 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
             backendContext->pResources[i].uavViewIndex = backendContext->pResources[i].srvViewIndex = -1;
         }
 
-        // Map context array
+        // Map context array — must align to alignof(EffectContext) = 32 bytes.
+        // On Linux wchar_t=4 changes preceding array sizes, so pMem may not be naturally aligned.
+        // Unaligned access to an alignas(32) struct causes the compiler-generated AVX aligned
+        // store instructions (vmovaps/vmovdqa) to fault with SIGSEGV, which the JVM signal
+        // handler retries in a loop, resulting in 100% CPU hang.
+        pMem = (uint8_t*)(((uintptr_t)pMem + alignof(BackendContext_VK::EffectContext) - 1) & ~(uintptr_t)(alignof(BackendContext_VK::EffectContext) - 1));
         backendContext->pEffectContexts = (BackendContext_VK::EffectContext*)pMem;
         memset(backendContext->pEffectContexts, 0, contextArraySize);
         pMem += contextArraySize;
@@ -1510,11 +1534,13 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
         backendContext->vkFunctionTable.vkCmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)vkDeviceContext->vkDeviceProcAddr(backendContext->device, "vkCmdBeginDebugUtilsLabelEXT");
         backendContext->vkFunctionTable.vkCmdEndDebugUtilsLabelEXT = (PFN_vkCmdEndDebugUtilsLabelEXT)vkDeviceContext->vkDeviceProcAddr(backendContext->device, "vkCmdEndDebugUtilsLabelEXT");
 
+        fprintf(stderr, "[FFX-VK] CreateBackendContextVK: VK function pointers loaded. Enumerating device extensions...\n"); fflush(stderr);
         // enumerate all the device extensions
         backendContext->numDeviceExtensions = 0;
         vkEnumerateDeviceExtensionProperties(backendContext->physicalDevice, nullptr, &backendContext->numDeviceExtensions, nullptr);
         vkEnumerateDeviceExtensionProperties(backendContext->physicalDevice, nullptr, &backendContext->numDeviceExtensions, backendContext->extensionProperties);
 
+        fprintf(stderr, "[FFX-VK] CreateBackendContextVK: Found %u device extensions. Creating descriptor pool...\n", backendContext->numDeviceExtensions); fflush(stderr);
         // create a global descriptor pool to hold all descriptors we'll need
         VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {};
         VkDescriptorPoolSize poolSizes[] = {
@@ -1536,6 +1562,7 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
         if (backendContext->vkFunctionTable.vkCreateDescriptorPool(backendContext->device, &descriptorPoolCreateInfo, nullptr, &backendContext->descriptorPool) != VK_SUCCESS) {
             return FFX_ERROR_BACKEND_API_ERROR;
         }
+        fprintf(stderr, "[FFX-VK] CreateBackendContextVK: Descriptor pool created OK. Creating uniform buffer...\n"); fflush(stderr);
 
         // set bindless resource view to base
         backendContext->bindlessBase = (backendContext->maxEffectContexts * FFX_MAX_QUEUED_FRAMES * FFX_MAX_RESOURCE_COUNT * 2);
@@ -1615,9 +1642,11 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
             {
                 return FFX_ERROR_BACKEND_API_ERROR;
             }
+            fprintf(stderr, "[FFX-VK] CreateBackendContextVK: Uniform buffer created, allocated, mapped, bound OK.\n"); fflush(stderr);
         }
 
         // Setup Breadcrumbs data
+        fprintf(stderr, "[FFX-VK] CreateBackendContextVK: Setting up Breadcrumbs data...\n"); fflush(stderr);
         {
             FfxDeviceCapabilities devCaps = {};
             if (GetDeviceCapabilitiesVK(backendInterface, &devCaps) != FFX_OK)
@@ -1717,32 +1746,59 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
             // Together with BREADCRUMBS_BUFFER_MARKER_ENABLED flag will switch to vkCmdWriteBufferMarker2AMD() to use new synchronization facilities
             if (devCaps.extendedSynchronizationSupported)
                 backendContext->breadcrumbsFlags |= BackendContext_VK::BREADCRUMBS_SYNCHRONIZATION2_ENABLED;
+            fprintf(stderr, "[FFX-VK] CreateBackendContextVK: Breadcrumbs setup done. breadcrumbsFlags=0x%x\n", backendContext->breadcrumbsFlags); fflush(stderr);
         }
     }
 
     // Increment the ref count
     ++backendContext->refCount;
+<<<<<<< HEAD
 
     // Get an available context id
     for (uint32_t i = 0; i < backendContext->maxEffectContexts; ++i) {
         if (!backendContext->pEffectContexts[i].active) {
+=======
+    fprintf(stderr, "[FFX-VK] CreateBackendContextVK: refCount=%u. Finding available context id... maxEffectContexts=%u pEffectContexts=%p\n", backendContext->refCount, backendContext->maxEffectContexts, (void*)backendContext->pEffectContexts); fflush(stderr);
+    for (uint32_t i = 0; i < backendContext->maxEffectContexts; ++i)
+    {
+        fprintf(stderr, "[FFX-VK] CreateBackendContextVK: Checking pEffectContexts[%u].active = %d\n", i, (int)backendContext->pEffectContexts[i].active); fflush(stderr);
+        if (!backendContext->pEffectContexts[i].active)
+        {
+            fprintf(stderr, "[FFX-VK] CreateBackendContextVK: Found inactive context at index %u. Setting up...\n", i); fflush(stderr);
+            fprintf(stderr, "[FFX-VK]   effectContextId=%p &pEffectContexts[%u]=%p sizeof(EffectContext)=%zu\n", (void*)effectContextId, i, (void*)&backendContext->pEffectContexts[i], sizeof(BackendContext_VK::EffectContext)); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
             *effectContextId = i;
+            fprintf(stderr, "[FFX-VK]   [1/8] effectContextId assigned\n"); fflush(stderr);
 
             // Reset everything accordingly
             BackendContext_VK::EffectContext& effectContext = backendContext->pEffectContexts[i];
+<<<<<<< HEAD
             effectContext.active = true;
             effectContext.effectId = effect;
+=======
+            effectContext.active                            = true;
+            effectContext.effectId                          = effect;
+            fprintf(stderr, "[FFX-VK]   [2/8] active+effectId set\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
 
             effectContext.nextStaticResource = (i * FFX_MAX_RESOURCE_COUNT) + 1;
             effectContext.nextDynamicResource = getDynamicResourcesStartIndex(i);
             effectContext.nextStaticResourceView = (i * FFX_MAX_QUEUED_FRAMES * FFX_MAX_RESOURCE_COUNT * 2);
+            fprintf(stderr, "[FFX-VK]   [3/8] resource indices set\n"); fflush(stderr);
             for (uint32_t frameIndex = 0; frameIndex < FFX_MAX_QUEUED_FRAMES; ++frameIndex)
             {
                 effectContext.nextDynamicResourceView[frameIndex] = getDynamicResourceViewsStartIndex(i, frameIndex);
             }
+            fprintf(stderr, "[FFX-VK]   [4/8] dynamic resource views set\n"); fflush(stderr);
             effectContext.nextPipelineLayout = (i * FFX_MAX_PASS_COUNT);
+<<<<<<< HEAD
             effectContext.frameIndex = 0;
+=======
+            effectContext.frameIndex         = 0;
+            fprintf(stderr, "[FFX-VK]   [5/8] pipeline layout + frameIndex set\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
 
+            fprintf(stderr, "[FFX-VK]   [6/8] bindlessConfig=%p\n", (void*)bindlessConfig); fflush(stderr);
             if (bindlessConfig)
             {
                 effectContext.bindlessTextureSrvHeapStart = backendContext->bindlessBase;
@@ -1954,18 +2010,26 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
             }
             else
             {
+                fprintf(stderr, "[FFX-VK]   [7/8] Taking non-bindless path (else branch)\n"); fflush(stderr);
                 effectContext.bindlessTextureSrvHeapStart = 0;
                 effectContext.bindlessTextureSrvHeapSize  = 0;
                 effectContext.bindlessBufferSrvHeapSize   = 0;
                 effectContext.bindlessTextureUavHeapStart = 0;
                 effectContext.bindlessTextureUavHeapSize  = 0;
                 effectContext.bindlessBufferUavHeapSize   = 0;
+<<<<<<< HEAD
             }   
+=======
+                fprintf(stderr, "[FFX-VK]   [8/8] bindless fields zeroed\n"); fflush(stderr);
+            }
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
 
+            fprintf(stderr, "[FFX-VK] CreateBackendContextVK: Context setup done. Breaking from loop.\n"); fflush(stderr);
             break;
         }
     }
 
+    fprintf(stderr, "[FFX-VK] CreateBackendContextVK: For loop completed. Exit OK. effectContextId=%u\n", *effectContextId); fflush(stderr);
     return FFX_OK;
 }
 
@@ -3247,7 +3311,9 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
     // start by fetching the shader blob
     FfxShaderBlob shaderBlob = { };
     // WON'T WORK WITH FSR3!!
+    fprintf(stderr, "[FFX-VK] CreatePipelineVK: Fetching shader blob for pass=%d permutation=0x%x...\n", (int)pass, permutationOptions); fflush(stderr);
     backendInterface->fpGetPermutationBlobByIndex(effect, pass, FFX_BIND_COMPUTE_SHADER_STAGE, permutationOptions, &shaderBlob);
+    fprintf(stderr, "[FFX-VK] CreatePipelineVK: Shader blob: data=%p size=%zu\n", shaderBlob.data, shaderBlob.size); fflush(stderr);
     FFX_ASSERT(shaderBlob.data && shaderBlob.size);
 
     //////////////////////////////////////////////////////////////////////////
@@ -3610,9 +3676,17 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
     shaderModuleCreateInfo.pCode = (uint32_t*)shaderBlob.data;
     shaderModuleCreateInfo.codeSize = shaderBlob.size;
 
+<<<<<<< HEAD
     if (backendContext->vkFunctionTable.vkCreateShaderModule(backendContext->device, &shaderModuleCreateInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+=======
+    fprintf(stderr, "[FFX-VK] CreatePipelineVK: Calling vkCreateShaderModule (codeSize=%zu)...\n", shaderBlob.size); fflush(stderr);
+    if (backendContext->vkFunctionTable.vkCreateShaderModule(backendContext->device, &shaderModuleCreateInfo, nullptr, &shaderModule) != VK_SUCCESS)
+    {
+        fprintf(stderr, "[FFX-VK] CreatePipelineVK: vkCreateShaderModule FAILED\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
         return FFX_ERROR_BACKEND_API_ERROR;
     }
+    fprintf(stderr, "[FFX-VK] CreatePipelineVK: vkCreateShaderModule OK. module=%p\n", (void*)shaderModule); fflush(stderr);
 
     // fill out shader stage create info
     VkPipelineShaderStageCreateInfo shaderStageCreateInfo = {};
@@ -3639,9 +3713,18 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
     pipelineCreateInfo.layout = pPipelineLayout->pipelineLayout;
 
     VkPipeline computePipeline = VK_NULL_HANDLE;
+<<<<<<< HEAD
     if (backendContext->vkFunctionTable.vkCreateComputePipelines(backendContext->device, nullptr, 1, &pipelineCreateInfo, nullptr, &computePipeline) != VK_SUCCESS) {
+=======
+    fprintf(stderr, "[FFX-VK] CreatePipelineVK: Calling vkCreateComputePipelines (isWave64=%d)...\n", isWave64); fflush(stderr);
+    if (backendContext->vkFunctionTable.vkCreateComputePipelines(backendContext->device, nullptr, 1, &pipelineCreateInfo, nullptr, &computePipeline) !=
+        VK_SUCCESS)
+    {
+        fprintf(stderr, "[FFX-VK] CreatePipelineVK: vkCreateComputePipelines FAILED\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
         return FFX_ERROR_BACKEND_API_ERROR;
     }
+    fprintf(stderr, "[FFX-VK] CreatePipelineVK: vkCreateComputePipelines OK. pipeline=%p\n", (void*)computePipeline); fflush(stderr);
 
     // done with shader module, so clean up
     backendContext->vkFunctionTable.vkDestroyShaderModule(backendContext->device, shaderModule, nullptr);
@@ -3769,7 +3852,16 @@ static FfxErrorCode executeGpuJobCompute(BackendContext_VK*    backendContext,
         uint32_t mipOffset = textureUAV.mip;
         if (textureUAV.mip >= backendContext->pResources[resourceIndex].resourceDescription.mipCount)
             mipOffset = backendContext->pResources[resourceIndex].resourceDescription.mipCount - 1;
+<<<<<<< HEAD
         const uint32_t uavViewIndex  = backendContext->pResources[resourceIndex].uavViewIndex + mipOffset;
+=======
+
+        // Skip resources that don't have UAV views created (uavViewIndex == -1)
+        if (backendContext->pResources[resourceIndex].uavViewIndex < 0)
+            continue;
+
+        const uint32_t uavViewIndex = backendContext->pResources[resourceIndex].uavViewIndex + mipOffset;
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
 
         writeDescriptorSets[descriptorWriteIndex]                 = {};
         writeDescriptorSets[descriptorWriteIndex].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -3851,6 +3943,11 @@ static FfxErrorCode executeGpuJobCompute(BackendContext_VK*    backendContext,
         writeDescriptorSets[descriptorWriteIndex].dstArrayElement = binding.arrayIndex;
 
         const uint32_t resourceIndex = textureSRV.resource.internalIndex;
+
+        // Skip resources that don't have SRV views created (srvViewIndex == -1)
+        if (backendContext->pResources[resourceIndex].srvViewIndex < 0)
+            continue;
+
         const uint32_t srvViewIndex  = backendContext->pResources[resourceIndex].srvViewIndex;
 
         imageDescriptorInfos[imageDescriptorIndex]             = {};

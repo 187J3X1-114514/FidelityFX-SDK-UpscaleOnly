@@ -20,10 +20,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+<<<<<<< HEAD
 #include <algorithm>    // for max used inside SPD CPU code.
 #include <cmath>        // for fabs, abs, sinf, sqrt, etc.
 #include <string.h>     // for memset
 #include <cfloat>       // for FLT_EPSILON
+=======
+#include <algorithm>  // for max used inside SPD CPU code.
+#include <cmath>      // for fabs, abs, sinf, sqrt, etc.
+#include <string.h>   // for memset
+#include <cfloat>     // for FLT_EPSILON
+#include <cstdio>     // for debug logging
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
 #include <FidelityFX/host/ffx_fsr3upscaler.h>
 
 #define FFX_CPU
@@ -426,62 +434,159 @@ static FfxErrorCode createPipelineStates(FfxFsr3UpscalerContext_Private* context
     // Work out what permutation to load.
     uint32_t contextFlags = context->contextDescription.flags;
 
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: caps: fp16=%d, wave64=%d, useLut=%d, waveLaneMin=%u, waveLaneMax=%u\n",
+            supportedFP16, canForceWave64, useLut, waveLaneCountMin, waveLaneCountMax); fflush(stderr);
+
     // Set up pipeline descriptor (basically RootSignature and binding)
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [1/11] Creating FSR3-LUMA-PYRAMID...\n"); fflush(stderr);
     wcscpy_s(pipelineDescription.name, L"FSR3-LUMA-PYRAMID");
     FFX_VALIDATE(context->contextDescription.backendInterface.fpCreatePipeline(&context->contextDescription.backendInterface, FFX_EFFECT_FSR3UPSCALER, FFX_FSR3UPSCALER_PASS_LUMA_PYRAMID,
         getPipelinePermutationFlags(contextFlags, FFX_FSR3UPSCALER_PASS_LUMA_PYRAMID, supportedFP16, canForceWave64, useLut),
+<<<<<<< HEAD
         &pipelineDescription, context->effectContextId, &context->pipelineLumaPyramid));
+=======
+        &pipelineDescription,
+        context->effectContextId,
+        &context->pipelineLumaPyramid));
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [1/11] FSR3-LUMA-PYRAMID done.\n"); fflush(stderr);
+
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [2/11] Creating FSR3-RCAS...\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
     wcscpy_s(pipelineDescription.name, L"FSR3-RCAS");
     FFX_VALIDATE(context->contextDescription.backendInterface.fpCreatePipeline(&context->contextDescription.backendInterface, FFX_EFFECT_FSR3UPSCALER, FFX_FSR3UPSCALER_PASS_RCAS,
         getPipelinePermutationFlags(contextFlags, FFX_FSR3UPSCALER_PASS_RCAS, supportedFP16, canForceWave64, useLut),
+<<<<<<< HEAD
         &pipelineDescription, context->effectContextId, &context->pipelineRCAS));
+=======
+        &pipelineDescription,
+        context->effectContextId,
+        &context->pipelineRCAS));
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [2/11] FSR3-RCAS done.\n"); fflush(stderr);
+
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [3/11] Creating FSR3-GEN_REACTIVE...\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
     wcscpy_s(pipelineDescription.name, L"FSR3-GEN_REACTIVE");
     FFX_VALIDATE(context->contextDescription.backendInterface.fpCreatePipeline(&context->contextDescription.backendInterface, FFX_EFFECT_FSR3UPSCALER, FFX_FSR3UPSCALER_PASS_GENERATE_REACTIVE,
         getPipelinePermutationFlags(contextFlags, FFX_FSR3UPSCALER_PASS_GENERATE_REACTIVE, supportedFP16, canForceWave64, useLut),
+<<<<<<< HEAD
         &pipelineDescription, context->effectContextId, &context->pipelineGenerateReactive));
+=======
+        &pipelineDescription,
+        context->effectContextId,
+        &context->pipelineGenerateReactive));
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [3/11] FSR3-GEN_REACTIVE done.\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
 
     pipelineDescription.rootConstantBufferCount = 1;
 
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [4/11] Creating FSR3-PREPARE-INPUTS...\n"); fflush(stderr);
     wcscpy_s(pipelineDescription.name, L"FSR3-PREPARE-INPUTS");
     FFX_VALIDATE(context->contextDescription.backendInterface.fpCreatePipeline(&context->contextDescription.backendInterface, FFX_EFFECT_FSR3UPSCALER, FFX_FSR3UPSCALER_PASS_PREPARE_INPUTS,
         getPipelinePermutationFlags(contextFlags, FFX_FSR3UPSCALER_PASS_PREPARE_INPUTS, supportedFP16, canForceWave64, useLut),
+<<<<<<< HEAD
         &pipelineDescription, context->effectContextId, &context->pipelinePrepareInputs));
+=======
+        &pipelineDescription,
+        context->effectContextId,
+        &context->pipelinePrepareInputs));
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [4/11] FSR3-PREPARE-INPUTS done.\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
 
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [5/11] Creating FSR3-PREPARE-REACTIVITY...\n"); fflush(stderr);
     wcscpy_s(pipelineDescription.name, L"FSR3-PREPARE-REACTIVITY");
     FFX_VALIDATE(context->contextDescription.backendInterface.fpCreatePipeline(&context->contextDescription.backendInterface, FFX_EFFECT_FSR3UPSCALER, FFX_FSR3UPSCALER_PASS_PREPARE_REACTIVITY,
         getPipelinePermutationFlags(contextFlags, FFX_FSR3UPSCALER_PASS_PREPARE_REACTIVITY, supportedFP16, canForceWave64, useLut),
+<<<<<<< HEAD
         &pipelineDescription, context->effectContextId, &context->pipelinePrepareReactivity));
     
+=======
+        &pipelineDescription,
+        context->effectContextId,
+        &context->pipelinePrepareReactivity));
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [5/11] FSR3-PREPARE-REACTIVITY done.\n"); fflush(stderr);
+
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [6/11] Creating FSR3-SHADING-CHANGE...\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
     wcscpy_s(pipelineDescription.name, L"FSR3-SHADING-CHANGE");
     FFX_VALIDATE(context->contextDescription.backendInterface.fpCreatePipeline(&context->contextDescription.backendInterface, FFX_EFFECT_FSR3UPSCALER, FFX_FSR3UPSCALER_PASS_SHADING_CHANGE,
         getPipelinePermutationFlags(contextFlags, FFX_FSR3UPSCALER_PASS_SHADING_CHANGE, supportedFP16, canForceWave64, useLut),
+<<<<<<< HEAD
         &pipelineDescription, context->effectContextId, &context->pipelineShadingChange));
     
+=======
+        &pipelineDescription,
+        context->effectContextId,
+        &context->pipelineShadingChange));
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [6/11] FSR3-SHADING-CHANGE done.\n"); fflush(stderr);
+
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [7/11] Creating FSR3-ACCUMULATE...\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
     wcscpy_s(pipelineDescription.name, L"FSR3-ACCUMULATE");
     FFX_VALIDATE(context->contextDescription.backendInterface.fpCreatePipeline(&context->contextDescription.backendInterface, FFX_EFFECT_FSR3UPSCALER, FFX_FSR3UPSCALER_PASS_ACCUMULATE,
         getPipelinePermutationFlags(contextFlags, FFX_FSR3UPSCALER_PASS_ACCUMULATE, supportedFP16, canForceWave64, useLut),
+<<<<<<< HEAD
         &pipelineDescription, context->effectContextId, &context->pipelineAccumulate));
     
+=======
+        &pipelineDescription,
+        context->effectContextId,
+        &context->pipelineAccumulate));
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [7/11] FSR3-ACCUMULATE done.\n"); fflush(stderr);
+
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [8/11] Creating FSR3-ACCUM_SHARP...\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
     wcscpy_s(pipelineDescription.name, L"FSR3-ACCUM_SHARP");
     FFX_VALIDATE(context->contextDescription.backendInterface.fpCreatePipeline(&context->contextDescription.backendInterface, FFX_EFFECT_FSR3UPSCALER, FFX_FSR3UPSCALER_PASS_ACCUMULATE_SHARPEN,
         getPipelinePermutationFlags(contextFlags, FFX_FSR3UPSCALER_PASS_ACCUMULATE_SHARPEN, supportedFP16, canForceWave64, useLut),
+<<<<<<< HEAD
         &pipelineDescription, context->effectContextId, &context->pipelineAccumulateSharpen));
+=======
+        &pipelineDescription,
+        context->effectContextId,
+        &context->pipelineAccumulateSharpen));
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [8/11] FSR3-ACCUM_SHARP done.\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
 
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [9/11] Creating FSR3-SHADING-CHANGE-PYRAMID...\n"); fflush(stderr);
     wcscpy_s(pipelineDescription.name, L"FSR3-SHADING-CHANGE-PYRAMID");
     FFX_VALIDATE(context->contextDescription.backendInterface.fpCreatePipeline(&context->contextDescription.backendInterface, FFX_EFFECT_FSR3UPSCALER, FFX_FSR3UPSCALER_PASS_SHADING_CHANGE_PYRAMID,
         getPipelinePermutationFlags(contextFlags, FFX_FSR3UPSCALER_PASS_SHADING_CHANGE_PYRAMID, supportedFP16, canForceWave64, useLut),
+<<<<<<< HEAD
         &pipelineDescription, context->effectContextId, &context->pipelineShadingChangePyramid));
+=======
+        &pipelineDescription,
+        context->effectContextId,
+        &context->pipelineShadingChangePyramid));
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [9/11] FSR3-SHADING-CHANGE-PYRAMID done.\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
 
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [10/11] Creating FSR3-LUMA-INSTABILITY...\n"); fflush(stderr);
     wcscpy_s(pipelineDescription.name, L"FSR3-LUMA-INSTABILITY");
     FFX_VALIDATE(context->contextDescription.backendInterface.fpCreatePipeline(&context->contextDescription.backendInterface, FFX_EFFECT_FSR3UPSCALER, FFX_FSR3UPSCALER_PASS_LUMA_INSTABILITY,
         getPipelinePermutationFlags(contextFlags, FFX_FSR3UPSCALER_PASS_LUMA_INSTABILITY, supportedFP16, canForceWave64, useLut),
+<<<<<<< HEAD
         &pipelineDescription, context->effectContextId, &context->pipelineLumaInstability));
+=======
+        &pipelineDescription,
+        context->effectContextId,
+        &context->pipelineLumaInstability));
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [10/11] FSR3-LUMA-INSTABILITY done.\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
 
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [11/11] Creating FSR3-DEBUG-VIEW...\n"); fflush(stderr);
     wcscpy_s(pipelineDescription.name, L"FSR3-DEBUG-VIEW");
     FFX_VALIDATE(context->contextDescription.backendInterface.fpCreatePipeline(&context->contextDescription.backendInterface, FFX_EFFECT_FSR3UPSCALER, FFX_FSR3UPSCALER_PASS_DEBUG_VIEW,
         getPipelinePermutationFlags(contextFlags, FFX_FSR3UPSCALER_PASS_DEBUG_VIEW, supportedFP16, canForceWave64, useLut),
+<<<<<<< HEAD
         &pipelineDescription, context->effectContextId, &context->pipelineDebugView));
+=======
+        &pipelineDescription,
+        context->effectContextId,
+        &context->pipelineDebugView));
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: [11/11] FSR3-DEBUG-VIEW done.\n"); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
 
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: Patching resource bindings...\n"); fflush(stderr);
     // for each pipeline: re-route/fix-up IDs based on names
     FFX_VALIDATE(patchResourceBindings(&context->pipelinePrepareInputs));
     FFX_VALIDATE(patchResourceBindings(&context->pipelinePrepareReactivity));
@@ -496,6 +601,7 @@ static FfxErrorCode createPipelineStates(FfxFsr3UpscalerContext_Private* context
     FFX_VALIDATE(patchResourceBindings(&context->pipelineLumaInstability));
     FFX_VALIDATE(patchResourceBindings(&context->pipelineDebugView));
 
+    fprintf(stderr, "[FFX-FSR3Upscaler] createPipelineStates: All done.\n"); fflush(stderr);
     return FFX_OK;
 }
 
@@ -514,14 +620,29 @@ static FfxErrorCode fsr3upscalerCreate(FfxFsr3UpscalerContext_Private* context, 
 
     // Check version info - make sure we are linked with the right backend version
     FfxVersionNumber version = context->contextDescription.backendInterface.fpGetSDKVersion(&context->contextDescription.backendInterface);
+    fprintf(stderr, "[FFX-FSR3Upscaler] fsr3upscalerCreate: SDK version check: 0x%x vs expected 0x%x\n", version, FFX_SDK_MAKE_VERSION(1, 1, 4)); fflush(stderr);
     FFX_RETURN_ON_ERROR(version == FFX_SDK_MAKE_VERSION(1, 1, 4), FFX_ERROR_INVALID_VERSION);
 
     // Create the context.
+<<<<<<< HEAD
     FfxErrorCode errorCode = context->contextDescription.backendInterface.fpCreateBackendContext(&context->contextDescription.backendInterface, FFX_EFFECT_FSR3UPSCALER, nullptr, &context->effectContextId);
     FFX_RETURN_ON_ERROR(errorCode == FFX_OK, errorCode);
 
     // call out for device caps.
     errorCode = context->contextDescription.backendInterface.fpGetDeviceCapabilities(&context->contextDescription.backendInterface, &context->deviceCapabilities);
+=======
+    fprintf(stderr, "[FFX-FSR3Upscaler] fsr3upscalerCreate: Calling fpCreateBackendContext...\n"); fflush(stderr);
+    FfxErrorCode errorCode = context->contextDescription.backendInterface.fpCreateBackendContext(
+        &context->contextDescription.backendInterface, FFX_EFFECT_FSR3UPSCALER, nullptr, &context->effectContextId);
+    fprintf(stderr, "[FFX-FSR3Upscaler] fsr3upscalerCreate: fpCreateBackendContext returned %d, effectContextId=%u\n", (int)errorCode, context->effectContextId); fflush(stderr);
+    FFX_RETURN_ON_ERROR(errorCode == FFX_OK, errorCode);
+
+    // call out for device caps.
+    fprintf(stderr, "[FFX-FSR3Upscaler] fsr3upscalerCreate: Calling fpGetDeviceCapabilities...\n"); fflush(stderr);
+    errorCode =
+        context->contextDescription.backendInterface.fpGetDeviceCapabilities(&context->contextDescription.backendInterface, &context->deviceCapabilities);
+    fprintf(stderr, "[FFX-FSR3Upscaler] fsr3upscalerCreate: fpGetDeviceCapabilities returned %d\n", (int)errorCode); fflush(stderr);
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
     FFX_RETURN_ON_ERROR(errorCode == FFX_OK, errorCode);
 
     // set defaults
@@ -618,8 +739,14 @@ static FfxErrorCode fsr3upscalerCreate(FfxFsr3UpscalerContext_Private* context, 
     // clear the SRV resources to NULL.
     memset(context->srvResources, 0, sizeof(context->srvResources));
 
+<<<<<<< HEAD
     for (int32_t currentSurfaceIndex = 0; currentSurfaceIndex < FFX_ARRAY_ELEMENTS(internalSurfaceDesc); ++currentSurfaceIndex) {
 
+=======
+    fprintf(stderr, "[FFX-FSR3Upscaler] fsr3upscalerCreate: Creating %d internal resources...\n", (int)FFX_ARRAY_ELEMENTS(internalSurfaceDesc)); fflush(stderr);
+    for (int32_t currentSurfaceIndex = 0; currentSurfaceIndex < FFX_ARRAY_ELEMENTS(internalSurfaceDesc); ++currentSurfaceIndex)
+    {
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
         const FfxInternalResourceDescription* currentSurfaceDescription = &internalSurfaceDesc[currentSurfaceIndex];
         const FfxResourceType resourceType = internalSurfaceDesc[currentSurfaceIndex].type;
         const FfxResourceDescription          resourceDescription       = {resourceType,
@@ -633,18 +760,32 @@ static FfxErrorCode fsr3upscalerCreate(FfxFsr3UpscalerContext_Private* context, 
         const FfxResourceStates initialState = (currentSurfaceDescription->usage == FFX_RESOURCE_USAGE_READ_ONLY) ? FFX_RESOURCE_STATE_COMPUTE_READ : FFX_RESOURCE_STATE_UNORDERED_ACCESS;
         const FfxCreateResourceDescription createResourceDescription = { FFX_HEAP_TYPE_DEFAULT, resourceDescription, initialState, currentSurfaceDescription->name, currentSurfaceDescription->id, currentSurfaceDescription->initData };
 
+<<<<<<< HEAD
         FFX_VALIDATE(context->contextDescription.backendInterface.fpCreateResource(&context->contextDescription.backendInterface, &createResourceDescription, context->effectContextId, &context->srvResources[currentSurfaceDescription->id]));
+=======
+        fprintf(stderr, "[FFX-FSR3Upscaler] fsr3upscalerCreate: Creating resource %d/%d (id=%d, %ux%u)...\n",
+                currentSurfaceIndex + 1, (int)FFX_ARRAY_ELEMENTS(internalSurfaceDesc),
+                currentSurfaceDescription->id, currentSurfaceDescription->width, currentSurfaceDescription->height); fflush(stderr);
+        FFX_VALIDATE(context->contextDescription.backendInterface.fpCreateResource(&context->contextDescription.backendInterface,
+                                                                                   &createResourceDescription,
+                                                                                   context->effectContextId,
+                                                                                   &context->srvResources[currentSurfaceDescription->id]));
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
     }
+    fprintf(stderr, "[FFX-FSR3Upscaler] fsr3upscalerCreate: All internal resources created.\n"); fflush(stderr);
 
     // copy resources to uavResrouces list
     memcpy(context->uavResources, context->srvResources, sizeof(context->srvResources));
 
     // avoid compiling pipelines on first render
     {
+        fprintf(stderr, "[FFX-FSR3Upscaler] fsr3upscalerCreate: Calling createPipelineStates...\n"); fflush(stderr);
         errorCode = createPipelineStates(context);
+        fprintf(stderr, "[FFX-FSR3Upscaler] fsr3upscalerCreate: createPipelineStates returned %d\n", (int)errorCode); fflush(stderr);
         FFX_RETURN_ON_ERROR(errorCode == FFX_OK, errorCode);
     }
 
+    fprintf(stderr, "[FFX-FSR3Upscaler] fsr3upscalerCreate: Exit OK\n"); fflush(stderr);
     return FFX_OK;
 }
 
@@ -884,12 +1025,43 @@ static FfxErrorCode fsr3upscalerDispatch(FfxFsr3UpscalerContext_Private* context
     context->contextDescription.backendInterface.fpRegisterResource(&context->contextDescription.backendInterface, &params->depth, context->effectContextId, &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_INPUT_DEPTH]);
     context->contextDescription.backendInterface.fpRegisterResource(&context->contextDescription.backendInterface, &params->motionVectors, context->effectContextId, &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_INPUT_MOTION_VECTORS]);
 
+<<<<<<< HEAD
     context->contextDescription.backendInterface.fpRegisterResource(&context->contextDescription.backendInterface, &params->dilatedMotionVectors, context->effectContextId, &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_MOTION_VECTORS]);
     context->uavResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_MOTION_VECTORS] = context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_MOTION_VECTORS];
     context->contextDescription.backendInterface.fpRegisterResource(&context->contextDescription.backendInterface, &params->dilatedDepth, context->effectContextId, &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_DEPTH]);
     context->uavResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_DEPTH] = context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_DEPTH];
     context->contextDescription.backendInterface.fpRegisterResource(&context->contextDescription.backendInterface, &params->reconstructedPrevNearestDepth, context->effectContextId, &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_RECONSTRUCTED_PREVIOUS_NEAREST_DEPTH]);
     context->uavResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_RECONSTRUCTED_PREVIOUS_NEAREST_DEPTH] = context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_RECONSTRUCTED_PREVIOUS_NEAREST_DEPTH];
+=======
+    // Only register shared resources if they are provided externally; otherwise keep the internal static resources
+    if (params->dilatedMotionVectors.resource)
+    {
+        context->contextDescription.backendInterface.fpRegisterResource(&context->contextDescription.backendInterface,
+                                                                        &params->dilatedMotionVectors,
+                                                                        context->effectContextId,
+                                                                        &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_MOTION_VECTORS]);
+        context->uavResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_MOTION_VECTORS] =
+            context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_MOTION_VECTORS];
+    }
+    if (params->dilatedDepth.resource)
+    {
+        context->contextDescription.backendInterface.fpRegisterResource(&context->contextDescription.backendInterface,
+                                                                        &params->dilatedDepth,
+                                                                        context->effectContextId,
+                                                                        &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_DEPTH]);
+        context->uavResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_DEPTH] = context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_DILATED_DEPTH];
+    }
+    if (params->reconstructedPrevNearestDepth.resource)
+    {
+        context->contextDescription.backendInterface.fpRegisterResource(
+            &context->contextDescription.backendInterface,
+            &params->reconstructedPrevNearestDepth,
+            context->effectContextId,
+            &context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_RECONSTRUCTED_PREVIOUS_NEAREST_DEPTH]);
+        context->uavResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_RECONSTRUCTED_PREVIOUS_NEAREST_DEPTH] =
+            context->srvResources[FFX_FSR3UPSCALER_RESOURCE_IDENTIFIER_RECONSTRUCTED_PREVIOUS_NEAREST_DEPTH];
+    }
+>>>>>>> b0572fe2de821a1c47205040cdbc48bd8c8457ab
 
     // if auto exposure is enabled use the auto exposure SRV, otherwise what the app sends.
     if (context->contextDescription.flags & FFX_FSR3UPSCALER_ENABLE_AUTO_EXPOSURE) {
